@@ -1,0 +1,6 @@
+fastapi==0.115.6
+uvicorn[standard]==0.30.6
+sqlmodel==0.0.21
+rectpack==0.2.2
+pydantic==2.9.2
+cairosvg==2.7.1

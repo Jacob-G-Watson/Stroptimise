@@ -105,6 +105,38 @@ function SheetSvg({ sheet }) {
 	const displayWidth = 600; // px target
 	const scale = displayWidth / sheet.width;
 	const displayHeight = Math.round(sheet.height * scale);
+	const polyIds = new Set((sheet.polygons || []).map((p) => p.piece_id));
+
+	const centroid = (pts) => {
+		if (!pts || pts.length < 3) {
+			// fallback to average
+			const n = pts?.length || 0;
+			if (!n) return { x: 0, y: 0 };
+			const sx = pts.reduce((a, [x]) => a + x, 0);
+			const sy = pts.reduce((a, [, y]) => a + y, 0);
+			return { x: sx / n, y: sy / n };
+		}
+		let a = 0, cx = 0, cy = 0;
+		for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+			const [x0, y0] = pts[j];
+			const [x1, y1] = pts[i];
+			const f = x0 * y1 - x1 * y0;
+			a += f;
+			cx += (x0 + x1) * f;
+			cy += (y0 + y1) * f;
+		}
+		a *= 0.5;
+		if (Math.abs(a) < 1e-6) {
+			// degenerate; average
+			const n = pts.length;
+			const sx = pts.reduce((s, [x]) => s + x, 0);
+			const sy = pts.reduce((s, [, y]) => s + y, 0);
+			return { x: sx / n, y: sy / n };
+		}
+		cx = cx / (6 * a);
+		cy = cy / (6 * a);
+		return { x: cx, y: cy };
+	};
 
 	return (
 		<div>
@@ -119,7 +151,26 @@ function SheetSvg({ sheet }) {
 				preserveAspectRatio="xMinYMin meet"
 			>
 				<rect x="0" y="0" width={sheet.width} height={sheet.height} fill="#fff" stroke="#111" />
-				{sheet.rects.map((r) => (
+				{/* Polygons first to avoid covering labels */}
+				{(sheet.polygons || []).map((pg, idx) => {
+					if (!pg.points || pg.points.length === 0) return null;
+					const d = `M ${pg.points.map(([x, y]) => `${x} ${y}`).join(" L ")} Z`;
+					const c = centroid(pg.points);
+					return (
+						<g key={`poly-${pg.piece_id}-${idx}`}>
+							<path d={d} fill="#ffe8cc" stroke="#9a3412" />
+							<text x={c.x} y={c.y} fontSize="14" fill="#0f172a" textAnchor="middle" alignmentBaseline="middle" style={{ pointerEvents: "none" }}>
+								{pg.name}
+							</text>
+							{pg.angle ? (
+								<text x={c.x} y={c.y + 16} fontSize="12" fill="#334155" textAnchor="middle" alignmentBaseline="hanging" style={{ pointerEvents: "none" }}>
+									{`${pg.angle}°`}
+								</text>
+							) : null}
+						</g>
+					);
+				})}
+				{sheet.rects.filter((r) => !polyIds.has(r.piece_id)).map((r) => (
 					<g key={r.piece_id}>
 						<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
 						<text x={r.x + 4} y={r.y + 14} fontSize="14" fill="#0f172a">

@@ -15,18 +15,29 @@ app = FastAPI()
 # Add piece to a cabinet
 @app.post("/api/cabinets/{cid}/pieces")
 def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
-    from models import Piece
+    from models import Piece, PiecePolygon
 
     name = data.get("name")
     width = data.get("width")
     height = data.get("height")
+    polygon = data.get("polygon")  # [[x,y], ...]
+    if polygon and (width is None or height is None):
+        # derive bbox for width/height to maintain compatibility
+        xs = [pt[0] for pt in polygon]
+        ys = [pt[1] for pt in polygon]
+        width = int(round(max(xs) - min(xs)))
+        height = int(round(max(ys) - min(ys)))
     piece = Piece(cabinet_id=cid, width=width, height=height)
-    # Optionally add name if Piece model supports it
     if name is not None:
         piece.name = name
     with Session(engine) as s:
         s.add(piece)
         s.commit()
+        s.refresh(piece)
+        if polygon:
+            poly = PiecePolygon(piece_id=piece.id, points_json=__import__("json").dumps(polygon))
+            s.add(poly)
+            s.commit()
         s.refresh(piece)
         return piece
 
@@ -80,11 +91,26 @@ def get_job_cabinets(pid: int):
 # Get pieces for a cabinet
 @app.get("/api/cabinets/{cid}/pieces")
 def get_cabinet_pieces(cid: str):
-    from models import Piece
+    from models import Piece, PiecePolygon
 
     with Session(engine) as s:
         pieces = s.exec(select(Piece).where(Piece.cabinet_id == cid)).all()
-        return pieces
+        # attach polygon if exists
+        out = []
+        for p in pieces:
+            poly = s.exec(select(PiecePolygon).where(PiecePolygon.piece_id == p.id)).first()
+            item = {
+                "id": p.id,
+                "cabinet_id": p.cabinet_id,
+                "colour_id": p.colour_id,
+                "name": p.name,
+                "width": p.width,
+                "height": p.height,
+            }
+            if poly:
+                item["polygon"] = __import__("json").loads(poly.points_json)
+            out.append(item)
+        return out
 
 
 @app.get("/api/jobs")
@@ -125,7 +151,22 @@ def get_job_pieces(pid: int):
         if not cab_ids:
             return []
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
-        return pieces
+        from models import PiecePolygon
+        out = []
+        for p in pieces:
+            poly = s.exec(select(PiecePolygon).where(PiecePolygon.piece_id == p.id)).first()
+            item = {
+                "id": p.id,
+                "cabinet_id": p.cabinet_id,
+                "colour_id": p.colour_id,
+                "name": p.name,
+                "width": p.width,
+                "height": p.height,
+            }
+            if poly:
+                item["polygon"] = __import__("json").loads(poly.points_json)
+            out.append(item)
+        return out
 
 
 @app.post("/api/jobs/{pid}/pieces")
@@ -144,6 +185,7 @@ class LayoutRequest(BaseModel):
     sheet_height: int
     allow_rotation: Optional[bool] = None
     kerf_mm: Optional[int] = None
+    # future: palette/material, angle granularity, etc.
 
 
 @app.post("/api/jobs/{pid}/layout")
@@ -164,16 +206,25 @@ def compute_job_layout(pid: int, body: LayoutRequest):
             return {"sheets": []}
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
 
-    # 2) Map to simple rects for the optimiser
-    rects = [
-        {
-            "id": p.id,
-            "name": getattr(p, "name", None),
-            "width": p.width,
-            "height": p.height,
-        }
-        for p in pieces
-    ]
+    # 2) Map to rects or polygons for the optimiser
+    rects_or_polys = []
+    with Session(engine) as s:
+        from models import PiecePolygon
+        for p in pieces:
+            poly = s.exec(select(PiecePolygon).where(PiecePolygon.piece_id == p.id)).first()
+            if poly:
+                rects_or_polys.append({
+                    "id": p.id,
+                    "name": getattr(p, "name", None),
+                    "polygon": __import__("json").loads(poly.points_json),
+                })
+            else:
+                rects_or_polys.append({
+                    "id": p.id,
+                    "name": getattr(p, "name", None),
+                    "width": p.width,
+                    "height": p.height,
+                })
 
     allow_rotation = body.allow_rotation
     if allow_rotation is None:
@@ -182,7 +233,7 @@ def compute_job_layout(pid: int, body: LayoutRequest):
 
     try:
         result = pack(
-            rects,
+            rects_or_polys,
             sheet_width=body.sheet_width,
             sheet_height=body.sheet_height,
             allow_rotation=allow_rotation,

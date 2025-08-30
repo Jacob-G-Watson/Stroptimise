@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
+import json
 import uuid
 from datetime import datetime
 
@@ -58,10 +59,12 @@ class Piece(SQLModel, table=True):
     cabinet_id: str = Field(foreign_key="cabinet.id")
     colour_id: Optional[str] = Field(foreign_key="colour.id")
     name: Optional[str] = None
-    width: int
-    height: int
+    width: int = 0
+    height: int = 0
     cabinet: Optional[Cabinet] = Relationship(back_populates="pieces")
     colour: Optional[Colour] = Relationship(back_populates="pieces")
+    # one-to-one: optional polygon data stored in separate table to avoid altering this table
+    polygon: Optional["PiecePolygon"] = Relationship(back_populates="piece")
 
 
 class Placement(SQLModel, table=True):
@@ -74,3 +77,14 @@ class Placement(SQLModel, table=True):
     w: int
     h: int
     rotated: bool = False
+
+
+class PiecePolygon(SQLModel, table=True):
+    """Optional polygon geometry for a piece, stored as JSON [[x,y], ...].
+    Separate table so existing Piece schema remains intact without migration.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    piece_id: str = Field(foreign_key="piece.id")
+    points_json: str  # JSON string of [[x,y], ...]
+
+    piece: Optional[Piece] = Relationship(back_populates="polygon")

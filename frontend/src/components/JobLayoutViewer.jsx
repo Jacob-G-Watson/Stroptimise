@@ -1,94 +1,136 @@
-import React, { useEffect, useState } from "react";
-import LayoutViewer from "./LayoutViewer";
+import React, { useEffect, useMemo, useState } from "react";
 
 function JobLayoutViewer({ job, onOptimised }) {
-	const [pieces, setPieces] = useState([]);
+	const [sheetWidth, setSheetWidth] = useState(2400); // mm
+	const [sheetHeight, setSheetHeight] = useState(1200); // mm
+	const [allowRotation, setAllowRotation] = useState(true);
+	const [kerf, setKerf] = useState(0);
+	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-	const [result, setResult] = useState(null);
 
 	useEffect(() => {
+		// Auto-run on load with defaults
 		if (!job?.id) return;
-		fetch(`/api/jobs/${job.id}/pieces`)
-			.then((r) => r.json())
-			.then((data) => setPieces(Array.isArray(data) ? data : []))
-			.catch(() => setPieces([]));
-	}, [job]);
+		handleCompute();
+	}, [job?.id]);
 
-	const handleStroptimise = async () => {
-		if (!job) return;
+	const handleCompute = async () => {
+		if (!job?.id) return;
 		setLoading(true);
 		setError("");
-		setResult(null);
 		try {
-			const pid = job.id;
-			// Re-fetch the latest pieces from the API to ensure we're using server state
-			const [piecesRes] = await Promise.all([fetch(`/api/jobs/${pid}/pieces`)]);
-			if (!piecesRes.ok) throw new Error("Failed to load pieces from server");
-			const freshPieces = await piecesRes.json();
-			setPieces(Array.isArray(freshPieces) ? freshPieces : []);
-
-			if (!freshPieces || freshPieces.length === 0) {
-				throw new Error("Job pieces on the server before optimising");
-			}
-
-			// Call optimise with a standard sheet size (1600x800)
-			const res = await fetch(`/api/jobs/${pid}/optimise`, {
+			const res = await fetch(`/api/jobs/${job.id}/layout`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ sheets: [{ width: 1600, height: 800 }] }),
+				body: JSON.stringify({
+					sheet_width: Number(sheetWidth),
+					sheet_height: Number(sheetHeight),
+					allow_rotation: allowRotation,
+					kerf_mm: Number(kerf) || 0,
+				}),
 			});
 			if (!res.ok) {
-				const txt = await res.text().catch(() => null);
-				throw new Error(txt || "Failed to stroptimise");
+				const msg = await res.text();
+				throw new Error(msg || "Failed to compute layout");
 			}
 			const data = await res.json();
 			setResult(data);
-			if (onOptimised) onOptimised(data);
-		} catch (err) {
-			setError(err.message || String(err));
+			onOptimised && onOptimised(data);
+		} catch (e) {
+			setError(e.message || String(e));
 		} finally {
 			setLoading(false);
 		}
 	};
 
+	const sheets = result?.sheets || [];
+
 	return (
-		<div className="bg-gray-100 p-4 rounded shadow mt-6">
-			<h3 className="text-lg font-bold mb-2">Job Layout Viewer</h3>
-			<div className="text-gray-600">Job ID: {job?.id}</div>
-			<div className="text-gray-600">Job Name: {job?.name}</div>
-
-			<div className="mt-4">
-				<h4 className="font-semibold mb-2">Pieces</h4>
-				<ul className="list-disc pl-6 mb-2">
-					{pieces.map((p) => (
-						<li key={p.id}>
-							{p.name || p.id} - {p.width} x {p.height}
-						</li>
-					))}
-				</ul>
-			</div>
-
-			<div className="my-4">
-				<button
-					className="px-4 py-2 bg-blue-500 text-white rounded"
-					onClick={handleStroptimise}
-					disabled={loading || !job}
-				>
-					{loading ? "Stroptimising..." : "Stroptimise"}
+		<div className="bg-white p-4 rounded shadow my-4">
+			<div className="mb-4 flex flex-wrap items-end gap-3">
+				<div>
+					<label className="block text-sm text-gray-600">Sheet width (mm)</label>
+					<input
+						type="number"
+						value={sheetWidth}
+						onChange={(e) => setSheetWidth(e.target.value)}
+						className="border px-2 py-1 rounded w-32"
+					/>
+				</div>
+				<div>
+					<label className="block text-sm text-gray-600">Sheet height (mm)</label>
+					<input
+						type="number"
+						value={sheetHeight}
+						onChange={(e) => setSheetHeight(e.target.value)}
+						className="border px-2 py-1 rounded w-32"
+					/>
+				</div>
+				<div>
+					<label className="block text-sm text-gray-600">Kerf (mm)</label>
+					<input
+						type="number"
+						value={kerf}
+						onChange={(e) => setKerf(e.target.value)}
+						className="border px-2 py-1 rounded w-24"
+					/>
+				</div>
+				<label className="inline-flex items-center gap-2">
+					<input
+						type="checkbox"
+						checked={allowRotation}
+						onChange={(e) => setAllowRotation(e.target.checked)}
+					/>
+					Allow rotation
+				</label>
+				<button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={handleCompute} disabled={loading}>
+					{loading ? "Computing..." : "Compute layout"}
 				</button>
-				{error && <div className="text-red-500 mt-2">{error}</div>}
-				{result && (
-					<div className="mt-4">
-						<LayoutViewer
-							sheets={[{ id: "live-1600x800", width: 1600, height: 800 }]}
-							placements={Array.isArray(result?.placements) ? result.placements : []}
-							binsUsed={result?.bins_used}
-							placementsByBin={result?.placements_by_bin || result?.placementsByBin}
-						/>
-					</div>
-				)}
 			</div>
+
+			{error && <div className="text-red-600 mb-3">{error}</div>}
+
+			<div className="grid gap-6 md:grid-cols-2">
+				{sheets.length === 0 && !loading && <div>No sheets yet</div>}
+				{sheets.map((sheet) => (
+					<SheetSvg key={sheet.index} sheet={sheet} />
+				))}
+			</div>
+		</div>
+	);
+}
+
+function SheetSvg({ sheet }) {
+	const displayWidth = 600; // px target
+	const scale = displayWidth / sheet.width;
+	const displayHeight = Math.round(sheet.height * scale);
+
+	return (
+		<div>
+			<div className="text-sm text-gray-600 mb-1">
+				Sheet #{sheet.index + 1} – {sheet.width} x {sheet.height} mm
+			</div>
+			<svg
+				width={displayWidth}
+				height={displayHeight}
+				viewBox={`0 0 ${sheet.width} ${sheet.height}`}
+				className="border bg-gray-50"
+				preserveAspectRatio="xMinYMin meet"
+			>
+				<rect x="0" y="0" width={sheet.width} height={sheet.height} fill="#fff" stroke="#111" />
+				{sheet.rects.map((r) => (
+					<g key={r.piece_id}>
+						<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
+						<text x={r.x + 4} y={r.y + 14} fontSize="14" fill="#0f172a">
+							{r.name}
+						</text>
+						<text x={r.x + 4} y={r.y + r.h - 4} fontSize="12" fill="#334155">
+							{r.w}×{r.h} {r.rotated ? "(rot)" : ""}
+						</text>
+					</g>
+				))}
+			</svg>
 		</div>
 	);
 }

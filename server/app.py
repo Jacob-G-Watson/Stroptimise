@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException, Query, Body
+from pydantic import BaseModel
+from typing import List, Optional
 from sqlmodel import SQLModel, Session, create_engine, select
 from models import Job, Sheet, Piece, Placement
-from services.optimizer import pack
+from services.optimiser import pack
 
 engine = create_engine(
     "sqlite:///db.sqlite3", connect_args={"check_same_thread": False}
@@ -136,69 +138,57 @@ def add_pieces(pid: int, pieces: list[Piece]):
         return pieces
 
 
-@app.post("/api/jobs/{pid}/optimise")
-def optimise(pid: int, data: dict = Body(...)):
-    from types import SimpleNamespace
+# -------- Layout endpoint --------
+class LayoutRequest(BaseModel):
+    sheet_width: int
+    sheet_height: int
+    allow_rotation: Optional[bool] = None
+    kerf_mm: Optional[int] = None
+
+
+@app.post("/api/jobs/{pid}/layout")
+def compute_job_layout(pid: int, body: LayoutRequest):
+    # 1) Collect all pieces belonging to the job's cabinets
     from models import Cabinet
 
     with Session(engine) as s:
-        job = s.exec(select(Job).where(Job.id == pid)).one()
+        job = s.get(Job, pid)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
 
-        sheets_payload = data.get("sheets") if isinstance(data, dict) else None
-
-        # Always load pieces via cabinets associated with the job
         cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
-        cab_ids = [c.id for c in cabinets if c.id is not None]
-        pieces = []
-        if cab_ids:
-            pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
+        if not cabinets:
+            return {"sheets": []}
+        cab_ids = [c.id for c in cabinets if c.id]
+        if not cab_ids:
+            return {"sheets": []}
+        pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
 
-        if (
-            sheets_payload
-            and isinstance(sheets_payload, list)
-            and len(sheets_payload) > 0
-        ):
-            # Use sheets passed from frontend (do not persist placements)
-            sheets_for_pack = []
-            for i, sh in enumerate(sheets_payload):
-                w = int(sh.get("width") or sh.get("w") or 0)
-                h = int(sh.get("height") or sh.get("h") or 0)
-                if w <= 0 or h <= 0:
-                    continue
-                # create a lightweight object with width/height attributes
-                sheets_for_pack.append(
-                    SimpleNamespace(width=w, height=h, sequence=i, id=None)
-                )
+    # 2) Map to simple rects for the optimiser
+    rects = [
+        {
+            "id": p.id,
+            "name": getattr(p, "name", None),
+            "width": p.width,
+            "height": p.height,
+        }
+        for p in pieces
+    ]
 
-            if not sheets_for_pack or not pieces:
-                raise HTTPException(
-                    400, "Sheets (in request) and pieces (on job) are required"
-                )
+    allow_rotation = body.allow_rotation
+    if allow_rotation is None:
+        allow_rotation = bool(job.allow_rotation)
+    kerf = body.kerf_mm if body.kerf_mm is not None else (job.kerf_mm or 0)
 
-            pack_result = pack(job, sheets_for_pack, pieces)
-            # pack now returns a dict: { placements: [...], bins_used: n }
-            placements = (
-                pack_result.get("placements", [])
-                if isinstance(pack_result, dict)
-                else pack_result
-            )
-            bins_used = (
-                pack_result.get("bins_used", None)
-                if isinstance(pack_result, dict)
-                else None
-            )
-
-            tot_area = sum(s.width * s.height for s in sheets_for_pack)
-            used_area = sum(p["w"] * p["h"] for p in placements)
-            resp = {
-                "placements": placements,
-                "utilization": {"overall": used_area / tot_area},
-                "bins_used": bins_used,
-            }
-
-            return resp
-
-        # Do not fall back to stored sheets - require sheets in request body
-        raise HTTPException(
-            400, "Sheets must be provided in the request body for optimisation"
+    try:
+        result = pack(
+            rects,
+            sheet_width=body.sheet_width,
+            sheet_height=body.sheet_height,
+            allow_rotation=allow_rotation,
+            kerf=kerf or 0,
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result

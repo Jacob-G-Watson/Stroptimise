@@ -8,12 +8,12 @@ erDiagram
     SHEET {
         guid id PK
         string name
-        guid colour_id FK
+        guid SheetType_id FK
         int width
         int height
     }
 
-    COLOUR {
+    SHEETTYPE {
         guid id PK
         string name
     }
@@ -27,17 +27,19 @@ erDiagram
     CABINET {
         guid id PK
         guid job_id FK
+        str name 
     }
 
     PIECE {
         guid id PK
         guid cabinet_id FK
-        guid colour_id FK
+        guid SheetType_id FK
+        str? name
         int width 
         int height 
     }
 
-    CUTLIST {
+    PLACEMENT {
         guid id PK
         guid job_id FK
         guid sheet_id FK
@@ -51,8 +53,8 @@ erDiagram
     USER ||--|{ JOB : "contains"
     JOB ||--|{ CABINET : "contains"
     CABINET ||--|{ PIECE : "made up of"
-    PIECE ||--|| COLOUR : "has a"
-    SHEET ||--|| COLOUR : "is a specific"
-    CUTLIST |{--|| PIECE : ""
-    CUTLIST |{--|| SHEET : ""
-    CUTLIST ||--|| JOB : ""
+    PIECE ||--|| SHEETTYPE : "has a"
+    SHEET ||--|| SHEETTYPE : "is a specific"
+    PLACEMENT |{--|| PIECE : ""
+    PLACEMENT |{--|| SHEET : ""
+    PLACEMENT ||--|| JOB : ""

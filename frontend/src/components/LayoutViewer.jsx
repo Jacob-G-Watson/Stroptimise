@@ -1,35 +1,62 @@
-import React from "react";
+function LayoutViewer({ sheets, placements, binsUsed, placementsByBin }) {
+	// prefer grouped placements or explicit binsUsed when available
+	const havePlacements = Array.isArray(placements) && placements.length > 0;
+	const haveGrouped = Array.isArray(placementsByBin) && placementsByBin.length > 0;
+	if (!sheets.length || (!havePlacements && !haveGrouped)) return null;
 
-function LayoutViewer({ sheets, placements }) {
-	// Hardcoded sheet and placement for demo
-	// const sheets = [{ id: 1, width: 400, height: 300 }];
-	// const placements = [
-	// 	{ sheet_id: 1, x: 50, y: 40, w: 100, h: 60 },
-	// 	{ sheet_id: 1, x: 200, y: 150, w: 80, h: 120 },
-	// ];
+	// Determine how many bins/sheets to render
+	const bins =
+		typeof binsUsed === "number" && binsUsed > 0
+			? binsUsed
+			: haveGrouped
+			? placementsByBin.length
+			: Math.max(1, placements.reduce((m, p) => Math.max(m, Number(p.bin_index || 0)), -1) + 1);
 
-	console.log(sheets, placements);
+	// If optimizer returned more bins than we were given sheet definitions for,
+	// clone the first sheet definition to fill the rest so we can render them.
+	const displaySheets = (() => {
+		if (sheets.length >= bins) return sheets;
+		const base = sheets[0] || { width: 1600, height: 800 };
+		const out = [...sheets];
+		for (let i = sheets.length; i < bins; i++) {
+			out.push({ ...base, id: base.id ? `${base.id}-${i}` : undefined });
+		}
+		return out;
+	})();
 
-	if (!sheets.length || !placements.length) return null;
 	return (
 		<div className="mt-8">
 			<h2 className="font-semibold mb-2">Layout Preview</h2>
-			{sheets.map((sheet, idx) => (
-				<svg
-					key={sheet.id || idx}
-					width={sheet.width}
-					height={sheet.height}
-					style={{ border: "1px solid #333", marginBottom: 16 }}
-				>
-					<rect x={0} y={0} width={sheet.width} height={sheet.height} fill="#f3f3f3" stroke="#333" />
-					{placements
-						//todo commented this out because nothing was showing up
-						//.filter((p) => p.sheet_id === sheet.id)
-						.map((p, i) => (
-							<rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} fill="#90cdf4" stroke="#2b6cb0" />
-						))}
-				</svg>
-			))}
+			{displaySheets.map((sheet, idx) => {
+				const sheetPlacements = haveGrouped
+					? placementsByBin[idx] || []
+					: placements.filter((p) => Number(p.bin_index || 0) === idx);
+				return (
+					<div key={sheet.id || idx} className="w-full">
+						<div className="mb-1 text-sm text-gray-600">
+							Sheet {idx + 1}: {sheet.width}×{sheet.height} ({sheetPlacements.length} pieces)
+						</div>
+						<svg
+							viewBox={`0 0 ${sheet.width} ${sheet.height}`}
+							preserveAspectRatio="xMidYMid meet"
+							className="w-full h-auto max-h-[80vh] border mb-4 block"
+						>
+							<rect x={0} y={0} width={sheet.width} height={sheet.height} fill="#f3f3f3" stroke="#333" />
+							{sheetPlacements.map((p, i) => (
+								<rect
+									key={i}
+									x={p.x}
+									y={p.y}
+									width={p.w}
+									height={p.h}
+									fill="#90cdf4"
+									stroke="#2b6cb0"
+								/>
+							))}
+						</svg>
+					</div>
+				);
+			})}
 		</div>
 	);
 }

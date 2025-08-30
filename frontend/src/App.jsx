@@ -1,49 +1,86 @@
 import React, { useState } from "react";
-import ProjectForm from "./components/ProjectForm";
-import SheetForm from "./components/SheetForm";
-import PieceForm from "./components/PieceForm";
-import LayoutViewer from "./components/LayoutViewer";
+import UserLogin from "./components/UserLogin";
+import UserJobsList from "./components/UserJobsList";
+import JobDetails from "./components/JobDetails";
+import CabinetDetails from "./components/CabinetDetails";
+import JobLayoutViewer from "./components/JobLayoutViewer";
+import Navbar from "./components/Navbar";
 
 function App() {
-	const [project, setProject] = useState(null);
-	const [sheets, setSheets] = useState([]);
-	const [pieces, setPieces] = useState([]);
-	const [placements, setPlacements] = useState([]);
+	const [user, setUser] = useState(null);
+	const [job, setJob] = useState(null);
+	const [selectedCabinet, setSelectedCabinet] = useState(null);
+	const [viewLayout, setViewLayout] = useState(null);
+	const [currentStep, setCurrentStep] = useState(0);
 
-	const handleOptimize = async () => {
-		if (!project) return;
-		const pid = project.id;
-		await fetch(`/api/projects/${pid}/sheets`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(sheets),
-		});
-		await fetch(`/api/projects/${pid}/pieces`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(pieces),
-		});
-		const res = await fetch(`/api/projects/${pid}/optimize`, { method: "POST" });
-		const data = await res.json();
-		setPlacements(data.placements || []);
+	const steps = [
+		{ key: "login", label: "Login" },
+		{ key: "jobs", label: "Jobs" },
+		{ key: "details", label: "Job Details" },
+		{ key: "cabinet", label: "Cabinet" },
+	];
+
+	const handleNavigate = (stepIdx) => {
+		setCurrentStep(stepIdx);
+		if (stepIdx === 0) {
+			setUser(null);
+			setJob(null);
+			setSelectedCabinet(null);
+			setViewLayout(false);
+		} else if (stepIdx === 1) {
+			setJob(null);
+			setViewLayout(false);
+			setSelectedCabinet(null);
+		} else if (stepIdx === 2) {
+			setSelectedCabinet(null);
+			setViewLayout(false);
+		}
 	};
+
+	let content;
+	if (!user) {
+		content = (
+			<UserLogin
+				onLogin={(u) => {
+					setUser(u);
+					setCurrentStep(1);
+				}}
+			/>
+		);
+	} else if (!job) {
+		content = (
+			<UserJobsList
+				user={user}
+				onSelectJob={(selectedJob) => {
+					setJob(selectedJob);
+					setCurrentStep(2);
+				}}
+			/>
+		);
+	} else if (!selectedCabinet && !viewLayout) {
+		content = (
+			<JobDetails
+				job={job}
+				onEditCabinet={(cabinet) => {
+					setSelectedCabinet(cabinet);
+					setCurrentStep(3);
+				}}
+				handleViewLayout={(isViewSelected) => {
+					setViewLayout(isViewSelected);
+					setCurrentStep(3);
+				}}
+			/>
+		);
+	} else if (viewLayout) {
+		content = <JobLayoutViewer job={job} />;
+	} else {
+		content = <CabinetDetails cabinet={selectedCabinet} />;
+	}
 
 	return (
 		<div className="min-h-screen bg-gray-100 p-4">
-			<h1 className="text-2xl font-bold mb-4">Stroptimise 2D Stock Cutting</h1>
-			<div className="bg-white p-4 rounded shadow">
-				<ProjectForm onSubmit={setProject} />
-				{project && (
-					<>
-						<SheetForm onSubmit={setSheets} />
-						<PieceForm onSubmit={setPieces} />
-						<button className="mt-4 px-4 py-2 bg-blue-500 text-white" onClick={handleOptimize}>
-							Optimize
-						</button>
-					</>
-				)}
-				<LayoutViewer sheets={sheets} placements={placements} />
-			</div>
+			<Navbar steps={steps} currentStep={currentStep} onNavigate={handleNavigate} />
+			{content}
 		</div>
 	);
 }

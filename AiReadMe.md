@@ -52,17 +52,17 @@ Develop a self-hosted, single-user web application that solves the 2D rectangula
 
 ### API (MVP)
 
-**`POST /api/projects`** → create project `{name, kerf_mm?, allow_rotation}` → `{project}`
+**`POST /api/jobs`** → create project `{name, kerf_mm?, allow_rotation}` → `{project}`
 
-**`POST /api/projects/{id}/sheets`** → add sheets `[{width,height,quantity}]` (expands to rows) → `{sheets}`
+**`POST /api/jobs/{id}/sheets`** → add sheets `[{width,height,quantity}]` (expands to rows) → `{sheets}`
 
-**`POST /api/projects/{id}/pieces`** → add pieces `[{width,height,quantity}]` → `{pieces}`
+**`POST /api/jobs/{id}/pieces`** → add pieces `[{width,height,quantity}]` → `{pieces}`
 
-**`POST /api/projects/{id}/optimize`** → run guillotine packing → `{placements:[...], utilization:{bySheet, overall}}`
+**`POST /api/jobs/{id}/optimize`** → run guillotine packing → `{placements:[...], utilization:{bySheet, overall}}`
 
-**`GET /api/projects/{id}/export.svg|png|pdf`** → server-side render & export
+**`GET /api/jobs/{id}/export.svg|png|pdf`** → server-side render & export
 
-**`GET /api/projects/{id}`** → project with sheets, pieces, placements
+**`GET /api/jobs/{id}`** → project with sheets, pieces, placements
 
 ### Algorithm – Guillotine Heuristic (via rectpack)
 
@@ -255,13 +255,13 @@ app = FastAPI()
 def on_startup():
     SQLModel.metadata.create_all(engine)
 
-@app.post("/api/projects")
+@app.post("/api/jobs")
 def create_project(p: Project):
     with Session(engine) as s:
         s.add(p); s.commit(); s.refresh(p)
         return p
 
-@app.post("/api/projects/{pid}/sheets")
+@app.post("/api/jobs/{pid}/sheets")
 def add_sheets(pid: int, sheets: list[Sheet]):
     for i, sh in enumerate(sheets):
         sh.project_id = pid
@@ -270,7 +270,7 @@ def add_sheets(pid: int, sheets: list[Sheet]):
         s.add_all(sheets); s.commit()
         return sheets
 
-@app.post("/api/projects/{pid}/pieces")
+@app.post("/api/jobs/{pid}/pieces")
 def add_pieces(pid: int, pieces: list[Piece]):
     for pc in pieces:
         pc.project_id = pid
@@ -278,7 +278,7 @@ def add_pieces(pid: int, pieces: list[Piece]):
         s.add_all(pieces); s.commit()
         return pieces
 
-@app.post("/api/projects/{pid}/optimize")
+@app.post("/api/jobs/{pid}/optimize")
 def optimize(pid: int):
     with Session(engine) as s:
         project = s.exec(select(Project).where(Project.id==pid)).one()
@@ -381,8 +381,8 @@ services:
 
 ### Export Pipeline
 
-- Frontend requests `/api/projects/{id}` and renders SVG per sheet.
-- For server-side export, POST raw SVG to `/api/projects/{id}/export` with `format=png|pdf`; backend uses CairoSVG to write file under `/app/exports` and returns a download URL.
+- Frontend requests `/api/jobs/{id}` and renders SVG per sheet.
+- For server-side export, POST raw SVG to `/api/jobs/{id}/export` with `format=png|pdf`; backend uses CairoSVG to write file under `/app/exports` and returns a download URL.
 
 ### Validation & Units
 

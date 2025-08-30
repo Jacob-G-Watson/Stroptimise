@@ -86,7 +86,7 @@ function CabinetDetails({ cabinet }) {
 					className="border px-2 py-1 rounded"
 				/>
 				<textarea
-					placeholder='Polygon points JSON e.g. [[0,0],[300,0],[300,50],[50,50],[50,200],[0,200]]'
+					placeholder="Polygon points JSON e.g. [[0,0],[300,0],[300,50],[50,50],[50,200],[0,200]]"
 					value={polygonText}
 					onChange={(e) => setPolygonText(e.target.value)}
 					className="border px-2 py-1 rounded w-full md:w-[480px] h-20"
@@ -101,7 +101,9 @@ function CabinetDetails({ cabinet }) {
 					{pieces.map((piece) => (
 						<li key={piece.id}>
 							{piece.name || piece.id} - {piece.width} x {piece.height}
-							{piece.polygon ? <span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1 rounded">polygon</span> : null}
+							{piece.polygon ? (
+								<span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1 rounded">polygon</span>
+							) : null}
 						</li>
 					))}
 				</ul>

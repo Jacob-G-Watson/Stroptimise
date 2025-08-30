@@ -35,7 +35,9 @@ def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
         s.commit()
         s.refresh(piece)
         if polygon:
-            poly = PiecePolygon(piece_id=piece.id, points_json=__import__("json").dumps(polygon))
+            poly = PiecePolygon(
+                piece_id=piece.id, points_json=__import__("json").dumps(polygon)
+            )
             s.add(poly)
             s.commit()
         s.refresh(piece)
@@ -98,7 +100,9 @@ def get_cabinet_pieces(cid: str):
         # attach polygon if exists
         out = []
         for p in pieces:
-            poly = s.exec(select(PiecePolygon).where(PiecePolygon.piece_id == p.id)).first()
+            poly = s.exec(
+                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
+            ).first()
             item = {
                 "id": p.id,
                 "cabinet_id": p.cabinet_id,
@@ -152,9 +156,12 @@ def get_job_pieces(pid: int):
             return []
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
         from models import PiecePolygon
+
         out = []
         for p in pieces:
-            poly = s.exec(select(PiecePolygon).where(PiecePolygon.piece_id == p.id)).first()
+            poly = s.exec(
+                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
+            ).first()
             item = {
                 "id": p.id,
                 "cabinet_id": p.cabinet_id,
@@ -185,7 +192,7 @@ class LayoutRequest(BaseModel):
     sheet_height: int
     allow_rotation: Optional[bool] = None
     kerf_mm: Optional[int] = None
-    # future: palette/material, angle granularity, etc.
+    packing_mode: Optional[str] = "heuristic"  # "heuristic" or "exhaustive"
 
 
 @app.post("/api/jobs/{pid}/layout")
@@ -210,21 +217,28 @@ def compute_job_layout(pid: int, body: LayoutRequest):
     rects_or_polys = []
     with Session(engine) as s:
         from models import PiecePolygon
+
         for p in pieces:
-            poly = s.exec(select(PiecePolygon).where(PiecePolygon.piece_id == p.id)).first()
+            poly = s.exec(
+                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
+            ).first()
             if poly:
-                rects_or_polys.append({
-                    "id": p.id,
-                    "name": getattr(p, "name", None),
-                    "polygon": __import__("json").loads(poly.points_json),
-                })
+                rects_or_polys.append(
+                    {
+                        "id": p.id,
+                        "name": getattr(p, "name", None),
+                        "polygon": __import__("json").loads(poly.points_json),
+                    }
+                )
             else:
-                rects_or_polys.append({
-                    "id": p.id,
-                    "name": getattr(p, "name", None),
-                    "width": p.width,
-                    "height": p.height,
-                })
+                rects_or_polys.append(
+                    {
+                        "id": p.id,
+                        "name": getattr(p, "name", None),
+                        "width": p.width,
+                        "height": p.height,
+                    }
+                )
 
     allow_rotation = body.allow_rotation
     if allow_rotation is None:
@@ -238,6 +252,7 @@ def compute_job_layout(pid: int, body: LayoutRequest):
             sheet_height=body.sheet_height,
             allow_rotation=allow_rotation,
             kerf=kerf or 0,
+            packing_mode=body.packing_mode or "heuristic",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

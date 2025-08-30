@@ -1,19 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState } from "react";
 
 function JobLayoutViewer({ job, onOptimised }) {
 	const [sheetWidth, setSheetWidth] = useState(2400); // mm
 	const [sheetHeight, setSheetHeight] = useState(1200); // mm
 	const [allowRotation, setAllowRotation] = useState(true);
 	const [kerf, setKerf] = useState(0);
+	const [packingMode, setPackingMode] = useState("heuristic");
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-
-	useEffect(() => {
-		// Auto-run on load with defaults
-		if (!job?.id) return;
-		handleCompute();
-	}, [job?.id]);
 
 	const handleCompute = async () => {
 		if (!job?.id) return;
@@ -28,6 +23,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 					sheet_height: Number(sheetHeight),
 					allow_rotation: allowRotation,
 					kerf_mm: Number(kerf) || 0,
+					packing_mode: packingMode,
 				}),
 			});
 			if (!res.ok) {
@@ -76,6 +72,18 @@ function JobLayoutViewer({ job, onOptimised }) {
 						className="border px-2 py-1 rounded w-24"
 					/>
 				</div>
+				<div>
+					<label className="block text-sm text-gray-600">Packing mode</label>
+					<select
+						value={packingMode}
+						onChange={(e) => setPackingMode(e.target.value)}
+						className="border px-2 py-1 rounded w-32"
+					>
+						<option value="simple">Simple</option>
+						<option value="heuristic">Heuristic</option>
+						<option value="exhaustive">Exhaustive</option>
+					</select>
+				</div>
 				<label className="inline-flex items-center gap-2">
 					<input
 						type="checkbox"
@@ -92,7 +100,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 			{error && <div className="text-red-600 mb-3">{error}</div>}
 
 			<div className="grid gap-6 md:grid-cols-2">
-				{sheets.length === 0 && !loading && <div>No sheets yet</div>}
+				{sheets.length === 0 && !loading && <div>No layout computed yet</div>}
 				{sheets.map((sheet) => (
 					<SheetSvg key={sheet.index} sheet={sheet} />
 				))}
@@ -116,7 +124,9 @@ function SheetSvg({ sheet }) {
 			const sy = pts.reduce((a, [, y]) => a + y, 0);
 			return { x: sx / n, y: sy / n };
 		}
-		let a = 0, cx = 0, cy = 0;
+		let a = 0,
+			cx = 0,
+			cy = 0;
 		for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
 			const [x0, y0] = pts[j];
 			const [x1, y1] = pts[i];
@@ -159,28 +169,46 @@ function SheetSvg({ sheet }) {
 					return (
 						<g key={`poly-${pg.piece_id}-${idx}`}>
 							<path d={d} fill="#ffe8cc" stroke="#9a3412" />
-							<text x={c.x} y={c.y} fontSize="14" fill="#0f172a" textAnchor="middle" alignmentBaseline="middle" style={{ pointerEvents: "none" }}>
+							<text
+								x={c.x}
+								y={c.y}
+								fontSize="14"
+								fill="#0f172a"
+								textAnchor="middle"
+								alignmentBaseline="middle"
+								style={{ pointerEvents: "none" }}
+							>
 								{pg.name}
 							</text>
 							{pg.angle ? (
-								<text x={c.x} y={c.y + 16} fontSize="12" fill="#334155" textAnchor="middle" alignmentBaseline="hanging" style={{ pointerEvents: "none" }}>
+								<text
+									x={c.x}
+									y={c.y + 16}
+									fontSize="12"
+									fill="#334155"
+									textAnchor="middle"
+									alignmentBaseline="hanging"
+									style={{ pointerEvents: "none" }}
+								>
 									{`${pg.angle}°`}
 								</text>
 							) : null}
 						</g>
 					);
 				})}
-				{sheet.rects.filter((r) => !polyIds.has(r.piece_id)).map((r) => (
-					<g key={r.piece_id}>
-						<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
-						<text x={r.x + 4} y={r.y + 14} fontSize="14" fill="#0f172a">
-							{r.name}
-						</text>
-						<text x={r.x + 4} y={r.y + r.h - 4} fontSize="12" fill="#334155">
-							{r.w}×{r.h} {r.rotated ? "(rot)" : ""}
-						</text>
-					</g>
-				))}
+				{sheet.rects
+					.filter((r) => !polyIds.has(r.piece_id))
+					.map((r) => (
+						<g key={r.piece_id}>
+							<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
+							<text x={r.x + 4} y={r.y + 14} fontSize="14" fill="#0f172a">
+								{r.name}
+							</text>
+							<text x={r.x + 4} y={r.y + r.h - 4} fontSize="12" fill="#334155">
+								{r.w}×{r.h} {r.rotated ? "(rot)" : ""}
+							</text>
+						</g>
+					))}
 			</svg>
 		</div>
 	);

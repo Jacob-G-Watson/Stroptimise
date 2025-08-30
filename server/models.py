@@ -83,6 +83,7 @@ class PiecePolygon(SQLModel, table=True):
     """Optional polygon geometry for a piece, stored as JSON [[x,y], ...].
     Separate table so existing Piece schema remains intact without migration.
     """
+
     id: Optional[int] = Field(default=None, primary_key=True)
     piece_id: str = Field(foreign_key="piece.id")
     points_json: str  # JSON string of [[x,y], ...]

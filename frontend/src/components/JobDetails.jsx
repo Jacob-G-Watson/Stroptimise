@@ -56,7 +56,10 @@ function JobDetails({ job, onEditCabinet, handleViewLayout }) {
 	return (
 		<div className="p-4 bg-white rounded shadow w-full max-w-md md:max-w-3xl mx-auto mt-6">
 			<h2 className="text-xl font-bold mb-2">Current Job: {job.name || job.id}</h2>
-			<button className="mb-4 px-3 py-1 bg-green-600 text-white rounded" onClick={() => handleViewLayout(true)}>
+			<button
+				className="mb-4 mr-2 px-3 py-1 bg-green-600 text-white rounded"
+				onClick={() => handleViewLayout(true)}
+			>
 				View Layout
 			</button>
 			{loading && <div>Loading cabinets...</div>}

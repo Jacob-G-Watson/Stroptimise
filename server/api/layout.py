@@ -118,7 +118,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
 
         # Save sheets if needed and placements
         placements = []
-        for sheet in result.get("sheets", []):
+        for idx, sheet in enumerate(result.get("sheets", []), start=1):
             # Try to find the sheet in DB, or create if needed
             db_sheet = s.exec(
                 select(Sheet)
@@ -140,8 +140,12 @@ def compute_job_layout(pid: str, body: LayoutRequest):
                 s.add(new_sheet)
                 s.commit()
                 sheet_id = new_sheet.id
-            # Save placements for rects
+
+            # Save placements for rects, skipping those that correspond to polygons
+            poly_ids = {pg.get("piece_id") for pg in (sheet.get("polygons") or [])}
             for rect in sheet.get("rects", []):
+                if rect.get("piece_id") in poly_ids:
+                    continue
                 placement = Placement(
                     placement_group_id=placement_group.id,
                     sheet_id=sheet_id,
@@ -151,6 +155,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
                     w=rect["w"],
                     h=rect["h"],
                     angle=rect.get("angle", 0),
+                    sheet_index=idx,
                 )
                 placements.append(placement)
             # Save placements for polygons if present
@@ -164,6 +169,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
                     w=0,
                     h=0,
                     angle=poly.get("angle", 0),
+                    sheet_index=idx,
                 )
                 placements.append(placement)
         s.add_all(placements)

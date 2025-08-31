@@ -76,6 +76,48 @@ function JobLayoutViewer({ job, onOptimised }) {
 		}
 	};
 
+	const handleExportCutsheetPdf = async () => {
+		if (!job?.id) return;
+		setError("");
+		try {
+			const res = await fetch(`/api/jobs/${job.id}/cutsheet.pdf`);
+			if (!res.ok) {
+				const msg = await res.text();
+				throw new Error(msg || "Failed to export cutsheet PDF");
+			}
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = res.headers.get("X-Filename") || "cutsheet.pdf";
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			window.URL.revokeObjectURL(url);
+		} catch (e) {
+			setError(e.message || String(e));
+		}
+	};
+
+	const quickDownload = async (path) => {
+		if (!job?.id) return;
+		try {
+			const res = await fetch(`/api/jobs/${job.id}/${path}`);
+			if (!res.ok) throw new Error(`Failed to download ${path}`);
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = res.headers.get("X-Filename") || path.split("/").pop();
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			window.URL.revokeObjectURL(url);
+		} catch (e) {
+			setError(e.message || String(e));
+		}
+	};
+
 	return (
 		<div className="bg-white p-4 rounded shadow my-4">
 			<div className="mb-4 flex flex-wrap items-end gap-3">
@@ -134,8 +176,27 @@ function JobLayoutViewer({ job, onOptimised }) {
 					onClick={handleExportPdf}
 					disabled={!!loading}
 				>
-					Export PDF
+					Export Layout as PDF
 				</button>
+				<div className="relative inline-block">
+					<select
+						className="ml-2 px-2 py-1 border rounded"
+						onChange={(e) => {
+							const val = e.target.value;
+							if (!val) return;
+							quickDownload(val);
+							e.target.value = "";
+						}}
+						defaultValue=""
+					>
+						<option value="" disabled>
+							Export Cutsheet
+						</option>
+						<option value="cutsheet.csv">CSV</option>
+						<option value="cutsheet.xlsx">XLSX</option>
+						<option value="cutsheet.pdf">PDF</option>
+					</select>
+				</div>
 			</div>
 
 			{error && <div className="text-red-600 mb-3">{error}</div>}

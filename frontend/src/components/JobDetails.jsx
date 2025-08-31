@@ -54,7 +54,7 @@ function JobDetails({ job, onEditCabinet, handleViewLayout }) {
 	};
 
 	return (
-		<div className="bg-white p-4 rounded shadow my-4">
+		<div className="p-4 bg-white rounded shadow w-full max-w-md md:max-w-3xl mx-auto mt-6">
 			<h2 className="text-xl font-bold mb-2">Current Job: {job.name || job.id}</h2>
 			<button className="mb-4 px-3 py-1 bg-green-600 text-white rounded" onClick={() => handleViewLayout(true)}>
 				View Layout
@@ -84,6 +84,23 @@ function JobDetails({ job, onEditCabinet, handleViewLayout }) {
 										onClick={() => onEditCabinet(cabinet)}
 									>
 										Edit
+									</button>
+									<button
+										className="px-2 py-1 bg-red-600 text-white rounded"
+										onClick={async () => {
+											if (!window.confirm("Delete this cabinet and its pieces?")) return;
+											try {
+												const res = await fetch(`/api/cabinets/${cabinet.id}`, {
+													method: "DELETE",
+												});
+												if (!res.ok) throw new Error("Failed to delete cabinet");
+												setCabinets((prev) => prev.filter((c) => c.id !== cabinet.id));
+											} catch (err) {
+												setError(err.message || "Delete failed");
+											}
+										}}
+									>
+										Delete
 									</button>
 								</div>
 							</div>

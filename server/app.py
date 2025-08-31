@@ -178,6 +178,34 @@ def add_pieces(pid: str, pieces: list[Piece]):
         return pieces
 
 
+# Delete a piece by id
+@app.delete("/api/pieces/{pid}")
+def delete_piece(pid: str):
+    with Session(engine) as s:
+        piece = s.get(Piece, pid)
+        if not piece:
+            raise HTTPException(status_code=404, detail="Piece not found")
+        s.delete(piece)
+        s.commit()
+        return {"status": "deleted", "id": pid}
+
+
+# Delete a cabinet and its pieces
+@app.delete("/api/cabinets/{cid}")
+def delete_cabinet(cid: str):
+    with Session(engine) as s:
+        cab = s.get(Cabinet, cid)
+        if not cab:
+            raise HTTPException(status_code=404, detail="Cabinet not found")
+        # Delete pieces that belong to this cabinet to avoid orphans
+        pieces = s.exec(select(Piece).where(Piece.cabinet_id == cid)).all()
+        for p in pieces:
+            s.delete(p)
+        s.delete(cab)
+        s.commit()
+        return {"status": "deleted", "id": cid}
+
+
 # -------- Layout endpoint --------
 class LayoutRequest(BaseModel):
     sheet_width: int

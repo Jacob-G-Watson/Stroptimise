@@ -2,8 +2,6 @@
 
 ## UI
 
-- Delete option for pieces
-- Delete option for cabinets
 - Sheet spacing should be nicer, keep it on screen
 - Easy way to put in a poly
 

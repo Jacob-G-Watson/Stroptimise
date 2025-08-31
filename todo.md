@@ -4,6 +4,10 @@
 
 - Sheet spacing should be nicer, keep it on screen
 - Easy way to put in a poly
+  - SVG click/drag editor (no deps): user clicks to add vertices on an SVG canvas, drag vertices to adjust, buttons for undo/clear/finish. Simple and no extra libs.
+  - User enters in json but it is immediately shown on screen what that does
+  - Show measurements on screen
+  - fix up how it hangs out the side
 
 ## Function
 

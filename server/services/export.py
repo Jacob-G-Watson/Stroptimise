@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import Color
+from math import atan2, degrees, sqrt
 
 
 def _mm_to_pt(mm: float) -> float:
@@ -86,6 +87,36 @@ def sheets_to_pdf_bytes(sheets: List[Dict[str, Any]], title: str = "Layout") -> 
             tw = c.stringWidth(label, "Helvetica", font_size)
             c.drawString(cx - tw / 2.0, cy - font_size / 3.0, label)
 
+            # Edge measurements for polygon (offset toward centroid)
+            dim_font = font_size
+            for i in range(len(pts)):
+                x0, y0 = pts[i]
+                x1, y1 = pts[(i + 1) % len(pts)]
+                # Convert to bottom-origin
+                bx0, by0 = x0, H - y0
+                bx1, by1 = x1, H - y1
+                # Midpoint
+                mx = (bx0 + bx1) / 2.0
+                my = (by0 + by1) / 2.0
+                # length in mm (use original points since length is invariant)
+                L = sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
+                # orientation angle
+                ang = degrees(atan2(by1 - by0, bx1 - bx0))
+                # offset toward polygon centroid
+                vx = cx - mx
+                vy = cy - my
+                vl = sqrt(vx * vx + vy * vy) or 1.0
+                off = max(3.0, min(8.0, dim_font * 0.8))
+                nx = (vx / vl) * off
+                ny = (vy / vl) * off
+                c.saveState()
+                c.translate(mx + nx, my + ny)
+                c.rotate(ang)
+                c.setFillColor(_hex_to_color("#0F172A"))
+                c.setFont("Helvetica", dim_font)
+                c.drawCentredString(0, -dim_font * 0.35, f"{int(round(L))} mm")
+                c.restoreState()
+
         # Rects (exclude ones that correspond to polygons)
         poly_ids = {p.get("piece_id") for p in (sheet.get("polygons") or [])}
         for r in sheet.get("rects", []) or []:
@@ -112,6 +143,47 @@ def sheets_to_pdf_bytes(sheets: List[Dict[str, Any]], title: str = "Layout") -> 
             c.setFillColor(_hex_to_color("#334155"))
             c.setFont("Helvetica", info_size)
             c.drawString(x + 1.5, y_bl + 1.5, f"{int(w)}×{int(h)}")
+
+            # Edge measurements for rectangle: top, bottom (w), left, right (h)
+            dim_font = label_size
+            # Inside margins
+            m = max(2.0, label_size * 0.5)
+            # Top edge (centered inside near top)
+            tx = x + w / 2.0
+            ty = y_bl + h - m
+            c.saveState()
+            c.setFillColor(_hex_to_color("#0F172A"))
+            c.setFont("Helvetica", dim_font)
+            c.drawCentredString(tx, ty, f"{int(round(w))} mm")
+            c.restoreState()
+            # Bottom edge (centered inside near bottom)
+            bx = x + w / 2.0
+            by = y_bl + m
+            c.saveState()
+            c.setFillColor(_hex_to_color("#0F172A"))
+            c.setFont("Helvetica", dim_font)
+            c.drawCentredString(bx, by, f"{int(round(w))} mm")
+            c.restoreState()
+            # Left edge (rotated -90, inside)
+            lx = x + m
+            ly = y_bl + h / 2.0
+            c.saveState()
+            c.translate(lx, ly)
+            c.rotate(-90)
+            c.setFillColor(_hex_to_color("#0F172A"))
+            c.setFont("Helvetica", dim_font)
+            c.drawCentredString(0, -dim_font * 0.35, f"{int(round(h))} mm")
+            c.restoreState()
+            # Right edge (rotated -90, inside)
+            rx = x + w - m
+            ry = y_bl + h / 2.0
+            c.saveState()
+            c.translate(rx, ry)
+            c.rotate(-90)
+            c.setFillColor(_hex_to_color("#0F172A"))
+            c.setFont("Helvetica", dim_font)
+            c.drawCentredString(0, -dim_font * 0.35, f"{int(round(h))} mm")
+            c.restoreState()
 
         c.restoreState()
         c.showPage()

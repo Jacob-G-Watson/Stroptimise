@@ -218,6 +218,7 @@ function SheetSvg({ sheet }) {
 					// pick font size as fraction of the smaller dimension, clamp for readability
 					const fontSizeMain = Math.max(8, Math.min(Math.round(Math.min(bw, bh) * 0.25), 48));
 					const fontSizeAngle = Math.max(8, Math.round(fontSizeMain * 0.65));
+					const dimFont = fontSizeMain;
 					return (
 						<g key={`poly-${pg.piece_id}-${idx}`}>
 							<path d={d} fill="#ffe8cc" stroke="#9a3412" />
@@ -227,7 +228,7 @@ function SheetSvg({ sheet }) {
 								fontSize={fontSizeMain}
 								fill="#0f172a"
 								textAnchor="middle"
-								alignmentBaseline="middle"
+								dominantBaseline="middle"
 								style={{ pointerEvents: "none" }}
 							>
 								{pg.name}
@@ -239,12 +240,46 @@ function SheetSvg({ sheet }) {
 									fontSize={fontSizeAngle}
 									fill="#334155"
 									textAnchor="middle"
-									alignmentBaseline="hanging"
+									dominantBaseline="hanging"
 									style={{ pointerEvents: "none" }}
 								>
 									{`${pg.angle}°`}
 								</text>
 							) : null}
+							{/* Edge measurements for polygon */}
+							{pg.points.map((p0, i) => {
+								const p1 = pg.points[(i + 1) % pg.points.length];
+								const [x0, y0] = p0;
+								const [x1, y1] = p1;
+								const mx = (x0 + x1) / 2;
+								const my = (y0 + y1) / 2;
+								const dx = x1 - x0;
+								const dy = y1 - y0;
+								const len = Math.hypot(dx, dy);
+								// Offset label a bit towards polygon centroid
+								const vx = c.x - mx;
+								const vy = c.y - my;
+								const vlen = Math.hypot(vx, vy) || 1;
+								const off = 30; // mm
+								const lx = mx + (vx / vlen) * off;
+								const ly = my + (vy / vlen) * off;
+								const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+								return (
+									<text
+										key={`poly-dim-${pg.piece_id}-${i}`}
+										x={lx}
+										y={ly}
+										fontSize={dimFont}
+										fill="#0f172a"
+										textAnchor="middle"
+										dominantBaseline="middle"
+										transform={`rotate(${angle} ${lx} ${ly})`}
+										style={{ pointerEvents: "none" }}
+									>
+										{`${Math.round(len)} mm`}
+									</text>
+								);
+							})}
 						</g>
 					);
 				})}
@@ -255,6 +290,7 @@ function SheetSvg({ sheet }) {
 						const rSmall = Math.min(r.w, r.h);
 						const rLabelSize = Math.max(8, Math.min(Math.round(rSmall * 0.12), 20));
 						const rInfoSize = Math.max(6, Math.round(rLabelSize * 0.85));
+						const dimFont = rLabelSize;
 						return (
 							<g key={r.piece_id}>
 								<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
@@ -263,6 +299,57 @@ function SheetSvg({ sheet }) {
 								</text>
 								<text x={r.x + 4} y={r.y + r.h - 4} fontSize={rInfoSize} fill="#334155">
 									{r.w}×{r.h} {r.angle && r.angle !== 0 ? `(${r.angle}°)` : ""}
+								</text>
+								{/* Edge measurements for rectangle */}
+								{/* Top */}
+								<text
+									x={r.x + r.w / 2}
+									y={r.y - 6}
+									fontSize={dimFont}
+									fill="#0f172a"
+									textAnchor="middle"
+									dominantBaseline="middle"
+									style={{ pointerEvents: "none" }}
+								>
+									{`${Math.round(r.w)} mm`}
+								</text>
+								{/* Bottom */}
+								<text
+									x={r.x + r.w / 2}
+									y={r.y + r.h + 6}
+									fontSize={dimFont}
+									fill="#0f172a"
+									textAnchor="middle"
+									dominantBaseline="middle"
+									style={{ pointerEvents: "none" }}
+								>
+									{`${Math.round(r.w)} mm`}
+								</text>
+								{/* Left (rotated) */}
+								<text
+									x={r.x - 6}
+									y={r.y + r.h / 2}
+									fontSize={dimFont}
+									fill="#0f172a"
+									textAnchor="middle"
+									dominantBaseline="middle"
+									transform={`rotate(-90 ${r.x - 6} ${r.y + r.h / 2})`}
+									style={{ pointerEvents: "none" }}
+								>
+									{`${Math.round(r.h)} mm`}
+								</text>
+								{/* Right (rotated) */}
+								<text
+									x={r.x + r.w + 6}
+									y={r.y + r.h / 2}
+									fontSize={dimFont}
+									fill="#0f172a"
+									textAnchor="middle"
+									dominantBaseline="middle"
+									transform={`rotate(-90 ${r.x + r.w + 6} ${r.y + r.h / 2})`}
+									style={{ pointerEvents: "none" }}
+								>
+									{`${Math.round(r.h)} mm`}
 								</text>
 							</g>
 						);

@@ -13,7 +13,6 @@
 ## Function
 
 - Make it at least somewhat secure
-- Export data as a pdf
 - Export data as a csv and json
 - Load data in from a csv or json modified export
 
@@ -61,9 +60,3 @@ Do not ask me to interact
 
 
 
-
-
-
-Add a button next to compute layout in job layout viewer that will export placement group downloaded
-Make use of the backend to do it and keep the front end calculation free.
-I want it to display as a pdf

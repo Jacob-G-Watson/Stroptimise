@@ -8,6 +8,7 @@
   - User enters in json but it is immediately shown on screen what that does
   - Show measurements on screen
   - fix up how it hangs out the side
+- show measurements on layout preview
 
 ## Function
 

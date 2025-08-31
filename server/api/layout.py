@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -16,6 +17,7 @@ from models import (
     Sheet,
 )
 from services.optimiser import pack
+from services.export import sheets_to_pdf_bytes
 
 router = APIRouter()
 
@@ -150,3 +152,68 @@ def compute_job_layout(pid: str, body: LayoutRequest):
         s.commit()
 
     return result
+
+
+@router.post("/jobs/{pid}/layout/export/pdf")
+def export_job_layout_pdf(pid: str, body: LayoutRequest):
+    # Reuse the same logic as compute_job_layout but return a PDF file.
+    with Session(engine) as s:
+        job = s.get(Job, pid)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
+        if not cabinets:
+            raise HTTPException(status_code=400, detail="No cabinets for this job")
+        cab_ids = [c.id for c in cabinets if c.id]
+        if not cab_ids:
+            raise HTTPException(status_code=400, detail="No cabinets for this job")
+        pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
+
+    rects_or_polys = []
+    for p in pieces:
+        if p.points_json:
+            rects_or_polys.append(
+                {
+                    "id": p.id,
+                    "name": getattr(p, "name", None),
+                    "polygon": json.loads(p.points_json),
+                }
+            )
+        else:
+            rects_or_polys.append(
+                {
+                    "id": p.id,
+                    "name": getattr(p, "name", None),
+                    "width": p.width,
+                    "height": p.height,
+                }
+            )
+
+    allow_rotation = body.allow_rotation
+    if allow_rotation is None:
+        allow_rotation = bool(getattr(job, "allow_rotation", True))
+    kerf = (
+        body.kerf_mm if body.kerf_mm is not None else (getattr(job, "kerf_mm", 0) or 0)
+    )
+
+    try:
+        result = pack(
+            rects_or_polys,
+            sheet_width=body.sheet_width,
+            sheet_height=body.sheet_height,
+            allow_rotation=allow_rotation,
+            kerf=kerf or 0,
+            packing_mode=body.packing_mode or "heuristic",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Render to PDF bytes
+    pdf_bytes = sheets_to_pdf_bytes(result.get("sheets", []), title=f"job-{pid}-layout")
+    filename = f"job-{pid}-layout.pdf"
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

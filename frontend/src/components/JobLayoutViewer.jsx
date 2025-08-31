@@ -42,6 +42,39 @@ function JobLayoutViewer({ job, onOptimised }) {
 
 	const sheets = result?.sheets || [];
 
+	const handleExportPdf = async () => {
+		if (!job?.id) return;
+		setError("");
+		try {
+			const res = await fetch(`/api/jobs/${job.id}/layout/export/pdf`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					sheet_width: Number(sheetWidth),
+					sheet_height: Number(sheetHeight),
+					allow_rotation: allowRotation,
+					kerf_mm: Number(kerf) || 0,
+					packing_mode: packingMode,
+				}),
+			});
+			if (!res.ok) {
+				const msg = await res.text();
+				throw new Error(msg || "Failed to export PDF");
+			}
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `job-${job.id}-layout.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			window.URL.revokeObjectURL(url);
+		} catch (e) {
+			setError(e.message || String(e));
+		}
+	};
+
 	return (
 		<div className="bg-white p-4 rounded shadow my-4">
 			<div className="mb-4 flex flex-wrap items-end gap-3">
@@ -94,6 +127,13 @@ function JobLayoutViewer({ job, onOptimised }) {
 				</label>
 				<button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={handleCompute} disabled={loading}>
 					{loading ? "Computing..." : "Compute layout"}
+				</button>
+				<button
+					className="px-3 py-1 bg-emerald-600 text-white rounded"
+					onClick={handleExportPdf}
+					disabled={!!loading}
+				>
+					Export PDF
 				</button>
 			</div>
 

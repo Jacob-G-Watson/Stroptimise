@@ -57,3 +57,12 @@ add a debug print into the server so that ever time it starts and ends a run it 
 Do not modify my db schema
 
 Do not ask me to interact
+
+
+
+
+
+
+Add a button next to compute layout in job layout viewer that will export placement group downloaded
+Make use of the backend to do it and keep the front end calculation free.
+I want it to display as a pdf

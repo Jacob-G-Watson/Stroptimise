@@ -18,12 +18,12 @@ class User(SQLModel, table=True):
 
 
 class Job(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: str = Field(default_factory=guid, primary_key=True)
     name: str
     user_id: str = Field(foreign_key="user.id")
     user: Optional[User] = Relationship(back_populates="jobs")
     cabinets: List["Cabinet"] = Relationship(back_populates="job")
-    # todo why didn't this work Placement: List["Placement"] = Relationship(back_populates="job")
+    placement_groups: List["PlacementGroup"] = Relationship(back_populates="job")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     kerf_mm: Optional[int] = None
     allow_rotation: bool = True
@@ -68,15 +68,29 @@ class Piece(SQLModel, table=True):
 
 
 class Placement(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    job_id: int = Field(foreign_key="job.id")
-    sheet_id: int = Field(foreign_key="sheet.id")
-    piece_id: int = Field(foreign_key="piece.id")
+    id: str = Field(default_factory=guid, primary_key=True)
+    placement_group_id: str = Field(foreign_key="placement_group.id")
+    sheet_id: str = Field(foreign_key="sheet.id")
+    piece_id: str = Field(foreign_key="piece.id")
     x: int
     y: int
     w: int
     h: int
     rotated: bool = False
+
+    placement_group: Optional["PlacementGroup"] = Relationship(
+        back_populates="placements"
+    )
+
+
+class PlacementGroup(SQLModel, table=True):
+    __tablename__ = "placement_group"
+    id: str = Field(default_factory=guid, primary_key=True)
+    optimise_method: Optional[str] = None
+    date: datetime = Field(default_factory=datetime.utcnow)
+    job_id: Optional[str] = Field(default=None, foreign_key="job.id")
+    job: Optional[Job] = Relationship(back_populates="placement_groups")
+    placements: List[Placement] = Relationship(back_populates="placement_group")
 
 
 class PiecePolygon(SQLModel, table=True):

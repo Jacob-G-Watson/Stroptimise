@@ -46,7 +46,7 @@ def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
 
 # Add cabinet to a job
 @app.post("/api/jobs/{pid}/cabinets")
-def add_cabinet(pid: int, data: dict = Body(...)):
+def add_cabinet(pid: str, data: dict = Body(...)):
     from models import Cabinet
 
     name = data.get("name")
@@ -82,7 +82,7 @@ def on_startup():
 
 # Get cabinets for a job
 @app.get("/api/jobs/{pid}/cabinets")
-def get_job_cabinets(pid: int):
+def get_job_cabinets(pid: str):
     from models import Cabinet
 
     with Session(engine) as s:
@@ -143,7 +143,7 @@ def create_job(data: dict):
 
 
 @app.get("/api/jobs/{pid}/pieces")
-def get_job_pieces(pid: int):
+def get_job_pieces(pid: str):
     # Return pieces that belong to any cabinet associated with the given job
     from models import Cabinet
 
@@ -177,7 +177,7 @@ def get_job_pieces(pid: int):
 
 
 @app.post("/api/jobs/{pid}/pieces")
-def add_pieces(pid: int, pieces: list[Piece]):
+def add_pieces(pid: str, pieces: list[Piece]):
     for pc in pieces:
         pc.job_id = pid
     with Session(engine) as s:
@@ -196,7 +196,7 @@ class LayoutRequest(BaseModel):
 
 
 @app.post("/api/jobs/{pid}/layout")
-def compute_job_layout(pid: int, body: LayoutRequest):
+def compute_job_layout(pid: str, body: LayoutRequest):
     # 1) Collect all pieces belonging to the job's cabinets
     from models import Cabinet
 
@@ -256,5 +256,74 @@ def compute_job_layout(pid: int, body: LayoutRequest):
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # Save PlacementGroup and Placements
+    from models import PlacementGroup, Placement, Sheet
+    from datetime import datetime
+
+    with Session(engine) as s:
+        # Create PlacementGroup
+        placement_group = PlacementGroup(
+            optimise_method=body.packing_mode or "heuristic",
+            date=datetime.utcnow(),
+            job_id=pid,
+        )
+        s.add(placement_group)
+        s.commit()  # To get placement_group.id
+
+        # Save sheets if needed and placements
+        placements = []
+        for sheet in result.get("sheets", []):
+            # Try to find the sheet in DB, or create if needed
+            db_sheet = s.exec(
+                select(Sheet)
+                .where(Sheet.width == sheet["width"])
+                .where(Sheet.height == sheet["height"])
+            ).first()
+            if db_sheet:
+                sheet_id = db_sheet.id
+            else:
+                # TODO hardcoded placeholder because we don't have user sheets yet
+                # Create new Sheet with default name
+                default_name = f"Auto {sheet['width']}x{sheet['height']}"
+                # Use a placeholder colour_id
+                placeholder_colour_id = "placeholder-colour-id"
+                new_sheet = Sheet(
+                    name=default_name,
+                    colour_id=placeholder_colour_id,
+                    width=sheet["width"],
+                    height=sheet["height"],
+                )
+                s.add(new_sheet)
+                s.commit()
+                sheet_id = new_sheet.id
+            # Save placements for rects
+            for rect in sheet.get("rects", []):
+                placement = Placement(
+                    placement_group_id=placement_group.id,
+                    sheet_id=sheet_id,
+                    piece_id=rect["piece_id"],
+                    x=rect["x"],
+                    y=rect["y"],
+                    w=rect["w"],
+                    h=rect["h"],
+                    rotated=rect.get("rotated", False),
+                )
+                placements.append(placement)
+            # Save placements for polygons if present
+            for poly in sheet.get("polygons", []):
+                placement = Placement(
+                    placement_group_id=placement_group.id,
+                    sheet_id=sheet_id,
+                    piece_id=poly["piece_id"],
+                    x=0,  # Polygon placements may need more info
+                    y=0,
+                    w=0,
+                    h=0,
+                    rotated=False,
+                )
+                placements.append(placement)
+        s.add_all(placements)
+        s.commit()
 
     return result

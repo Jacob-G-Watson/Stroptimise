@@ -135,7 +135,7 @@ def _pack_rectangles(
         orig_h = meta.get("h", h)
         adj_w = max(1, int(w) - kerf)
         adj_h = max(1, int(h) - kerf)
-        rotated = (adj_w == orig_h and adj_h == orig_w) if allow_rotation else False
+        angle = 90 if allow_rotation and (adj_w == orig_h and adj_h == orig_w) else 0
         sheets_map[bin_index]["rects"].append(
             {
                 "piece_id": rid,
@@ -144,7 +144,7 @@ def _pack_rectangles(
                 "y": int(y),
                 "w": int(adj_w),
                 "h": int(adj_h),
-                "rotated": bool(rotated),
+                "angle": angle,
             }
         )
 
@@ -311,7 +311,7 @@ def _pack_irregular(
                 "y": int(round(miny)),
                 "w": int(round(maxx - minx)),
                 "h": int(round(maxy - miny)),
-                "rotated": angle_deg % 180 != 0,
+                "angle": int(angle_deg),
             }
         )
 

@@ -34,7 +34,7 @@ erDiagram
         guid id PK
         guid cabinet_id FK
         guid SheetType_id FK
-        str? name
+        str name
         int width 
         int height 
     }
@@ -49,6 +49,7 @@ erDiagram
         int piece_y
         int piece_width
         int piece_height
+        int angle
     }
 
     PLACEMENTGROUP {

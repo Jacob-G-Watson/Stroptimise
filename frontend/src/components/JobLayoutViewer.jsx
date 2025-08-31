@@ -205,7 +205,7 @@ function SheetSvg({ sheet }) {
 								{r.name}
 							</text>
 							<text x={r.x + 4} y={r.y + r.h - 4} fontSize="12" fill="#334155">
-								{r.w}×{r.h} {r.rotated ? "(rot)" : ""}
+								{r.w}×{r.h} {r.angle && r.angle !== 0 ? `(${r.angle}°)` : ""}
 							</text>
 						</g>
 					))}

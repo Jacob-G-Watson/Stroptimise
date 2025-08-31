@@ -307,7 +307,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
                     y=rect["y"],
                     w=rect["w"],
                     h=rect["h"],
-                    rotated=rect.get("rotated", False),
+                    angle=rect.get("angle", 0),
                 )
                 placements.append(placement)
             # Save placements for polygons if present
@@ -320,7 +320,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
                     y=0,
                     w=0,
                     h=0,
-                    rotated=False,
+                    angle=poly.get("angle", 0),
                 )
                 placements.append(placement)
         s.add_all(placements)

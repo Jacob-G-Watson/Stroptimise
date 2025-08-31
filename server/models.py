@@ -76,7 +76,7 @@ class Placement(SQLModel, table=True):
     y: int
     w: int
     h: int
-    rotated: bool = False
+    angle: int = 0  # degrees of rotation
 
     placement_group: Optional["PlacementGroup"] = Relationship(
         back_populates="placements"

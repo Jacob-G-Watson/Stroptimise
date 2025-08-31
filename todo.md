@@ -9,6 +9,7 @@
   - Show measurements on screen
   - fix up how it hangs out the side
 - show measurements on layout preview
+- Zoom on webviewer
 
 ## Function
 

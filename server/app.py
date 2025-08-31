@@ -1,10 +1,22 @@
-from fastapi import FastAPI, HTTPException, Query, Body
-from pydantic import BaseModel
-from typing import List, Optional
-from sqlmodel import SQLModel, Session, create_engine, select
-from models import Job, Sheet, Piece, Placement
-from services.optimiser import pack
 import json
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import Body, FastAPI, HTTPException, Query
+from pydantic import BaseModel
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from models import (
+    Cabinet,
+    Job,
+    Piece,
+    PiecePolygon,
+    Placement,
+    PlacementGroup,
+    Sheet,
+    User,
+)
+from services.optimiser import pack
 
 engine = create_engine(
     "sqlite:///db.sqlite3", connect_args={"check_same_thread": False}
@@ -16,8 +28,6 @@ app = FastAPI()
 # Add piece to a cabinet
 @app.post("/api/cabinets/{cid}/pieces")
 def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
-    from models import Piece, PiecePolygon
-
     name = data.get("name")
     width = data.get("width")
     height = data.get("height")
@@ -46,8 +56,6 @@ def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
 # Add cabinet to a job
 @app.post("/api/jobs/{pid}/cabinets")
 def add_cabinet(pid: str, data: dict = Body(...)):
-    from models import Cabinet
-
     name = data.get("name")
     cabinet = Cabinet(job_id=pid, name=name)
     with Session(engine) as s:
@@ -58,7 +66,6 @@ def add_cabinet(pid: str, data: dict = Body(...)):
 
 
 # User login endpoint
-from models import User
 
 
 @app.post("/api/users/login")
@@ -82,8 +89,6 @@ def on_startup():
 # Get cabinets for a job
 @app.get("/api/jobs/{pid}/cabinets")
 def get_job_cabinets(pid: str):
-    from models import Cabinet
-
     with Session(engine) as s:
         cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
         return cabinets
@@ -92,8 +97,6 @@ def get_job_cabinets(pid: str):
 # Get pieces for a cabinet
 @app.get("/api/cabinets/{cid}/pieces")
 def get_cabinet_pieces(cid: str):
-    from models import Piece, PiecePolygon
-
     with Session(engine) as s:
         pieces = s.exec(select(Piece).where(Piece.cabinet_id == cid)).all()
         # attach polygon if exists
@@ -144,8 +147,6 @@ def create_job(data: dict):
 @app.get("/api/jobs/{pid}/pieces")
 def get_job_pieces(pid: str):
     # Return pieces that belong to any cabinet associated with the given job
-    from models import Cabinet
-
     with Session(engine) as s:
         cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
         if not cabinets:
@@ -154,8 +155,6 @@ def get_job_pieces(pid: str):
         if not cab_ids:
             return []
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
-        from models import PiecePolygon
-
         out = []
         for p in pieces:
             poly = s.exec(
@@ -197,8 +196,6 @@ class LayoutRequest(BaseModel):
 @app.post("/api/jobs/{pid}/layout")
 def compute_job_layout(pid: str, body: LayoutRequest):
     # 1) Collect all pieces belonging to the job's cabinets
-    from models import Cabinet
-
     with Session(engine) as s:
         job = s.get(Job, pid)
         if not job:
@@ -215,8 +212,6 @@ def compute_job_layout(pid: str, body: LayoutRequest):
     # 2) Map to rects or polygons for the optimiser
     rects_or_polys = []
     with Session(engine) as s:
-        from models import PiecePolygon
-
         for p in pieces:
             poly = s.exec(
                 select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
@@ -257,9 +252,6 @@ def compute_job_layout(pid: str, body: LayoutRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     # Save PlacementGroup and Placements
-    from models import PlacementGroup, Placement, Sheet
-    from datetime import datetime
-
     with Session(engine) as s:
         # Create PlacementGroup
         placement_group = PlacementGroup(

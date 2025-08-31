@@ -1,6 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
-import json
 import uuid
 from datetime import datetime
 

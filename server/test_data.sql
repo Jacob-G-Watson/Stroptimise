@@ -303,11 +303,9 @@ VALUES
         290
     );
 
--- Example polygon for one piece in Cabinet B
-INSERT INTO
-    piecepolygon (piece_id, points_json)
-VALUES
-    (
-        'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
-        '[ [0,0], [200,0], [200,50], [50,50], [50,200], [0,200] ]'
-    );
+-- Example polygon for one piece in Cabinet B: update the piece row's points_json
+UPDATE piece
+SET
+    points_json = '[ [0,0], [200,0], [200,50], [50,50], [50,200], [0,200] ]'
+WHERE
+    id = 'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1';

@@ -60,10 +60,10 @@ class Piece(SQLModel, table=True):
     name: Optional[str] = None
     width: int = 0
     height: int = 0
+    # Optional polygon geometry stored inline as JSON string of [[x, y], ...]
+    points_json: Optional[str] = None
     cabinet: Optional[Cabinet] = Relationship(back_populates="pieces")
     colour: Optional[Colour] = Relationship(back_populates="pieces")
-    # one-to-one: optional polygon data stored in separate table to avoid altering this table
-    polygon: Optional["PiecePolygon"] = Relationship(back_populates="piece")
 
 
 class Placement(SQLModel, table=True):
@@ -90,15 +90,3 @@ class PlacementGroup(SQLModel, table=True):
     job_id: Optional[str] = Field(default=None, foreign_key="job.id")
     job: Optional[Job] = Relationship(back_populates="placement_groups")
     placements: List[Placement] = Relationship(back_populates="placement_group")
-
-
-class PiecePolygon(SQLModel, table=True):
-    """Optional polygon geometry for a piece, stored as JSON [[x,y], ...].
-    Separate table so existing Piece schema remains intact without migration.
-    """
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    piece_id: str = Field(foreign_key="piece.id")
-    points_json: str  # JSON string of [[x,y], ...]
-
-    piece: Optional[Piece] = Relationship(back_populates="polygon")

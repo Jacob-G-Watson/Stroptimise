@@ -10,7 +10,6 @@ from models import (
     Cabinet,
     Job,
     Piece,
-    PiecePolygon,
     Placement,
     PlacementGroup,
     Sheet,
@@ -46,8 +45,9 @@ def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
         s.commit()
         s.refresh(piece)
         if polygon:
-            poly = PiecePolygon(piece_id=piece.id, points_json=json.dumps(polygon))
-            s.add(poly)
+            # store inline on the piece
+            piece.points_json = json.dumps(polygon)
+            s.add(piece)
             s.commit()
         s.refresh(piece)
         return piece
@@ -102,9 +102,6 @@ def get_cabinet_pieces(cid: str):
         # attach polygon if exists
         out = []
         for p in pieces:
-            poly = s.exec(
-                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
-            ).first()
             item = {
                 "id": p.id,
                 "cabinet_id": p.cabinet_id,
@@ -113,8 +110,8 @@ def get_cabinet_pieces(cid: str):
                 "width": p.width,
                 "height": p.height,
             }
-            if poly:
-                item["polygon"] = json.loads(poly.points_json)
+            if p.points_json:
+                item["polygon"] = json.loads(p.points_json)
             out.append(item)
         return out
 
@@ -157,9 +154,6 @@ def get_job_pieces(pid: str):
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
         out = []
         for p in pieces:
-            poly = s.exec(
-                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
-            ).first()
             item = {
                 "id": p.id,
                 "cabinet_id": p.cabinet_id,
@@ -168,8 +162,8 @@ def get_job_pieces(pid: str):
                 "width": p.width,
                 "height": p.height,
             }
-            if poly:
-                item["polygon"] = json.loads(poly.points_json)
+            if p.points_json:
+                item["polygon"] = json.loads(p.points_json)
             out.append(item)
         return out
 
@@ -213,15 +207,12 @@ def compute_job_layout(pid: str, body: LayoutRequest):
     rects_or_polys = []
     with Session(engine) as s:
         for p in pieces:
-            poly = s.exec(
-                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
-            ).first()
-            if poly:
+            if p.points_json:
                 rects_or_polys.append(
                     {
                         "id": p.id,
                         "name": getattr(p, "name", None),
-                        "polygon": json.loads(poly.points_json),
+                        "polygon": json.loads(p.points_json),
                     }
                 )
             else:

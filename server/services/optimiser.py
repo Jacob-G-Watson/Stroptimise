@@ -425,9 +425,6 @@ def _place_on_sheet_exhaustive(
     return None
 
 
-from typing import Any
-
-
 def _offset_polygon(poly: Any, delta: float) -> Any:
     if delta == 0:
         return poly

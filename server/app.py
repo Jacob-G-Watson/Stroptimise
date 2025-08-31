@@ -4,6 +4,7 @@ from typing import List, Optional
 from sqlmodel import SQLModel, Session, create_engine, select
 from models import Job, Sheet, Piece, Placement
 from services.optimiser import pack
+import json
 
 engine = create_engine(
     "sqlite:///db.sqlite3", connect_args={"check_same_thread": False}
@@ -35,9 +36,7 @@ def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
         s.commit()
         s.refresh(piece)
         if polygon:
-            poly = PiecePolygon(
-                piece_id=piece.id, points_json=__import__("json").dumps(polygon)
-            )
+            poly = PiecePolygon(piece_id=piece.id, points_json=json.dumps(polygon))
             s.add(poly)
             s.commit()
         s.refresh(piece)
@@ -112,7 +111,7 @@ def get_cabinet_pieces(cid: str):
                 "height": p.height,
             }
             if poly:
-                item["polygon"] = __import__("json").loads(poly.points_json)
+                item["polygon"] = json.loads(poly.points_json)
             out.append(item)
         return out
 
@@ -171,7 +170,7 @@ def get_job_pieces(pid: str):
                 "height": p.height,
             }
             if poly:
-                item["polygon"] = __import__("json").loads(poly.points_json)
+                item["polygon"] = json.loads(poly.points_json)
             out.append(item)
         return out
 
@@ -227,7 +226,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
                     {
                         "id": p.id,
                         "name": getattr(p, "name", None),
-                        "polygon": __import__("json").loads(poly.points_json),
+                        "polygon": json.loads(poly.points_json),
                     }
                 )
             else:

@@ -46,7 +46,6 @@ function CabinetDetails({ cabinet }) {
 			setPieceName("");
 			setPieceWidth("");
 			setPieceHeight("");
-			setPieceHeight("");
 			setPolygonText("");
 		} catch (err) {
 			setError(err.message);

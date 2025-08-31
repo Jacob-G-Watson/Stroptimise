@@ -1,8 +1,21 @@
-from fastapi import FastAPI, HTTPException, Query, Body
-from pydantic import BaseModel
+import json
+from datetime import datetime
 from typing import List, Optional
-from sqlmodel import SQLModel, Session, create_engine, select
-from models import Job, Sheet, Piece, Placement
+
+from fastapi import Body, FastAPI, HTTPException, Query
+from pydantic import BaseModel
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from models import (
+    Cabinet,
+    Job,
+    Piece,
+    PiecePolygon,
+    Placement,
+    PlacementGroup,
+    Sheet,
+    User,
+)
 from services.optimiser import pack
 
 engine = create_engine(
@@ -15,27 +28,34 @@ app = FastAPI()
 # Add piece to a cabinet
 @app.post("/api/cabinets/{cid}/pieces")
 def add_piece_to_cabinet(cid: str, data: dict = Body(...)):
-    from models import Piece
-
     name = data.get("name")
     width = data.get("width")
     height = data.get("height")
+    polygon = data.get("polygon")  # [[x,y], ...]
+    if polygon and (width is None or height is None):
+        # derive bbox for width/height to maintain compatibility
+        xs = [pt[0] for pt in polygon]
+        ys = [pt[1] for pt in polygon]
+        width = int(round(max(xs) - min(xs)))
+        height = int(round(max(ys) - min(ys)))
     piece = Piece(cabinet_id=cid, width=width, height=height)
-    # Optionally add name if Piece model supports it
     if name is not None:
         piece.name = name
     with Session(engine) as s:
         s.add(piece)
         s.commit()
         s.refresh(piece)
+        if polygon:
+            poly = PiecePolygon(piece_id=piece.id, points_json=json.dumps(polygon))
+            s.add(poly)
+            s.commit()
+        s.refresh(piece)
         return piece
 
 
 # Add cabinet to a job
 @app.post("/api/jobs/{pid}/cabinets")
-def add_cabinet(pid: int, data: dict = Body(...)):
-    from models import Cabinet
-
+def add_cabinet(pid: str, data: dict = Body(...)):
     name = data.get("name")
     cabinet = Cabinet(job_id=pid, name=name)
     with Session(engine) as s:
@@ -46,7 +66,6 @@ def add_cabinet(pid: int, data: dict = Body(...)):
 
 
 # User login endpoint
-from models import User
 
 
 @app.post("/api/users/login")
@@ -69,9 +88,7 @@ def on_startup():
 
 # Get cabinets for a job
 @app.get("/api/jobs/{pid}/cabinets")
-def get_job_cabinets(pid: int):
-    from models import Cabinet
-
+def get_job_cabinets(pid: str):
     with Session(engine) as s:
         cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
         return cabinets
@@ -80,11 +97,26 @@ def get_job_cabinets(pid: int):
 # Get pieces for a cabinet
 @app.get("/api/cabinets/{cid}/pieces")
 def get_cabinet_pieces(cid: str):
-    from models import Piece
-
     with Session(engine) as s:
         pieces = s.exec(select(Piece).where(Piece.cabinet_id == cid)).all()
-        return pieces
+        # attach polygon if exists
+        out = []
+        for p in pieces:
+            poly = s.exec(
+                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
+            ).first()
+            item = {
+                "id": p.id,
+                "cabinet_id": p.cabinet_id,
+                "colour_id": p.colour_id,
+                "name": p.name,
+                "width": p.width,
+                "height": p.height,
+            }
+            if poly:
+                item["polygon"] = json.loads(poly.points_json)
+            out.append(item)
+        return out
 
 
 @app.get("/api/jobs")
@@ -113,10 +145,8 @@ def create_job(data: dict):
 
 
 @app.get("/api/jobs/{pid}/pieces")
-def get_job_pieces(pid: int):
+def get_job_pieces(pid: str):
     # Return pieces that belong to any cabinet associated with the given job
-    from models import Cabinet
-
     with Session(engine) as s:
         cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
         if not cabinets:
@@ -125,11 +155,27 @@ def get_job_pieces(pid: int):
         if not cab_ids:
             return []
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
-        return pieces
+        out = []
+        for p in pieces:
+            poly = s.exec(
+                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
+            ).first()
+            item = {
+                "id": p.id,
+                "cabinet_id": p.cabinet_id,
+                "colour_id": p.colour_id,
+                "name": p.name,
+                "width": p.width,
+                "height": p.height,
+            }
+            if poly:
+                item["polygon"] = json.loads(poly.points_json)
+            out.append(item)
+        return out
 
 
 @app.post("/api/jobs/{pid}/pieces")
-def add_pieces(pid: int, pieces: list[Piece]):
+def add_pieces(pid: str, pieces: list[Piece]):
     for pc in pieces:
         pc.job_id = pid
     with Session(engine) as s:
@@ -144,13 +190,12 @@ class LayoutRequest(BaseModel):
     sheet_height: int
     allow_rotation: Optional[bool] = None
     kerf_mm: Optional[int] = None
+    packing_mode: Optional[str] = "heuristic"  # "heuristic" or "exhaustive"
 
 
 @app.post("/api/jobs/{pid}/layout")
-def compute_job_layout(pid: int, body: LayoutRequest):
+def compute_job_layout(pid: str, body: LayoutRequest):
     # 1) Collect all pieces belonging to the job's cabinets
-    from models import Cabinet
-
     with Session(engine) as s:
         job = s.get(Job, pid)
         if not job:
@@ -164,16 +209,30 @@ def compute_job_layout(pid: int, body: LayoutRequest):
             return {"sheets": []}
         pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
 
-    # 2) Map to simple rects for the optimiser
-    rects = [
-        {
-            "id": p.id,
-            "name": getattr(p, "name", None),
-            "width": p.width,
-            "height": p.height,
-        }
-        for p in pieces
-    ]
+    # 2) Map to rects or polygons for the optimiser
+    rects_or_polys = []
+    with Session(engine) as s:
+        for p in pieces:
+            poly = s.exec(
+                select(PiecePolygon).where(PiecePolygon.piece_id == p.id)
+            ).first()
+            if poly:
+                rects_or_polys.append(
+                    {
+                        "id": p.id,
+                        "name": getattr(p, "name", None),
+                        "polygon": json.loads(poly.points_json),
+                    }
+                )
+            else:
+                rects_or_polys.append(
+                    {
+                        "id": p.id,
+                        "name": getattr(p, "name", None),
+                        "width": p.width,
+                        "height": p.height,
+                    }
+                )
 
     allow_rotation = body.allow_rotation
     if allow_rotation is None:
@@ -182,13 +241,80 @@ def compute_job_layout(pid: int, body: LayoutRequest):
 
     try:
         result = pack(
-            rects,
+            rects_or_polys,
             sheet_width=body.sheet_width,
             sheet_height=body.sheet_height,
             allow_rotation=allow_rotation,
             kerf=kerf or 0,
+            packing_mode=body.packing_mode or "heuristic",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # Save PlacementGroup and Placements
+    with Session(engine) as s:
+        # Create PlacementGroup
+        placement_group = PlacementGroup(
+            optimise_method=body.packing_mode or "heuristic",
+            date=datetime.utcnow(),
+            job_id=pid,
+        )
+        s.add(placement_group)
+        s.commit()  # To get placement_group.id
+
+        # Save sheets if needed and placements
+        placements = []
+        for sheet in result.get("sheets", []):
+            # Try to find the sheet in DB, or create if needed
+            db_sheet = s.exec(
+                select(Sheet)
+                .where(Sheet.width == sheet["width"])
+                .where(Sheet.height == sheet["height"])
+            ).first()
+            if db_sheet:
+                sheet_id = db_sheet.id
+            else:
+                # TODO hardcoded placeholder because we don't have user sheets yet
+                # Create new Sheet with default name
+                default_name = f"Auto {sheet['width']}x{sheet['height']}"
+                # Use a placeholder colour_id
+                placeholder_colour_id = "placeholder-colour-id"
+                new_sheet = Sheet(
+                    name=default_name,
+                    colour_id=placeholder_colour_id,
+                    width=sheet["width"],
+                    height=sheet["height"],
+                )
+                s.add(new_sheet)
+                s.commit()
+                sheet_id = new_sheet.id
+            # Save placements for rects
+            for rect in sheet.get("rects", []):
+                placement = Placement(
+                    placement_group_id=placement_group.id,
+                    sheet_id=sheet_id,
+                    piece_id=rect["piece_id"],
+                    x=rect["x"],
+                    y=rect["y"],
+                    w=rect["w"],
+                    h=rect["h"],
+                    angle=rect.get("angle", 0),
+                )
+                placements.append(placement)
+            # Save placements for polygons if present
+            for poly in sheet.get("polygons", []):
+                placement = Placement(
+                    placement_group_id=placement_group.id,
+                    sheet_id=sheet_id,
+                    piece_id=poly["piece_id"],
+                    x=0,  # Polygon placements may need more info
+                    y=0,
+                    w=0,
+                    h=0,
+                    angle=poly.get("angle", 0),
+                )
+                placements.append(placement)
+        s.add_all(placements)
+        s.commit()
 
     return result

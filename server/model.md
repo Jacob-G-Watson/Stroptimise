@@ -34,13 +34,14 @@ erDiagram
         guid id PK
         guid cabinet_id FK
         guid SheetType_id FK
-        str? name
+        str name
         int width 
         int height 
     }
 
     PLACEMENT {
         guid id PK
+        guid PlacementGroup_id PK
         guid job_id FK
         guid sheet_id FK
         guid piece_id FK
@@ -48,6 +49,14 @@ erDiagram
         int piece_y
         int piece_width
         int piece_height
+        int angle
+    }
+
+    PLACEMENTGROUP {
+        guid id PK
+        str optimiseMethod
+        date DATETIME
+        guid job_id
     }
 
     USER ||--|{ JOB : "contains"
@@ -57,4 +66,5 @@ erDiagram
     SHEET ||--|| SHEETTYPE : "is a specific"
     PLACEMENT |{--|| PIECE : ""
     PLACEMENT |{--|| SHEET : ""
-    PLACEMENT ||--|| JOB : ""
+    PLACEMENT ||--|| PLACEMENTGROUP : ""
+    PLACEMENTGROUP ||--|| JOB : ""

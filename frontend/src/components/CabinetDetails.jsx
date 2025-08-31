@@ -7,6 +7,7 @@ function CabinetDetails({ cabinet }) {
 	const [pieceName, setPieceName] = useState("");
 	const [pieceWidth, setPieceWidth] = useState("");
 	const [pieceHeight, setPieceHeight] = useState("");
+	const [polygonText, setPolygonText] = useState(""); // JSON [[x,y],...]
 	const [adding, setAdding] = useState(false);
 
 	React.useEffect(() => {
@@ -32,7 +33,12 @@ function CabinetDetails({ cabinet }) {
 			const res = await fetch(`/api/cabinets/${cabinet.id}/pieces`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: pieceName, width: pieceWidth, height: pieceHeight }),
+				body: JSON.stringify({
+					name: pieceName,
+					width: pieceWidth || undefined,
+					height: pieceHeight || undefined,
+					polygon: polygonText ? JSON.parse(polygonText) : undefined,
+				}),
 			});
 			if (!res.ok) throw new Error("Failed to add piece");
 			const newPiece = await res.json();
@@ -40,6 +46,7 @@ function CabinetDetails({ cabinet }) {
 			setPieceName("");
 			setPieceWidth("");
 			setPieceHeight("");
+			setPolygonText("");
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -69,7 +76,6 @@ function CabinetDetails({ cabinet }) {
 					value={pieceWidth}
 					onChange={(e) => setPieceWidth(e.target.value)}
 					className="border px-2 py-1 rounded"
-					required
 				/>
 				<input
 					type="number"
@@ -77,7 +83,12 @@ function CabinetDetails({ cabinet }) {
 					value={pieceHeight}
 					onChange={(e) => setPieceHeight(e.target.value)}
 					className="border px-2 py-1 rounded"
-					required
+				/>
+				<textarea
+					placeholder="Polygon points JSON e.g. [[0,0],[300,0],[300,50],[50,50],[50,200],[0,200]]"
+					value={polygonText}
+					onChange={(e) => setPolygonText(e.target.value)}
+					className="border px-2 py-1 rounded w-full md:w-[480px] h-20"
 				/>
 				<button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded" disabled={adding}>
 					{adding ? "Adding..." : "Add Piece"}
@@ -89,6 +100,9 @@ function CabinetDetails({ cabinet }) {
 					{pieces.map((piece) => (
 						<li key={piece.id}>
 							{piece.name || piece.id} - {piece.width} x {piece.height}
+							{piece.polygon ? (
+								<span className="ml-2 text-xs bg-amber-200 text-amber-800 px-1 rounded">polygon</span>
+							) : null}
 						</li>
 					))}
 				</ul>

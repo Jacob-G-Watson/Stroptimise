@@ -1,5 +1,26 @@
 from rectpack import newPacker, GuillotineBafSas
 from typing import List, Dict, Any
+from math import ceil
+
+# Optional deps for irregular nesting
+try:
+    from shapely.geometry import Polygon, box
+    from shapely.affinity import rotate as shp_rotate, translate as shp_translate
+    from shapely.ops import unary_union
+
+    _HAS_SHAPELY = True
+except Exception:
+    Polygon = None  # type: ignore
+    _HAS_SHAPELY = False
+
+try:
+    import pyclipper
+
+    _HAS_PYCLIPPER = True
+except Exception:
+    _HAS_PYCLIPPER = False
+
+_IRREGULAR_DEPS_OK = _HAS_SHAPELY
 
 
 def pack(
@@ -8,28 +29,72 @@ def pack(
     sheet_height: int,
     allow_rotation: bool = True,
     kerf: int = 0,
+    packing_mode: str = "heuristic",
 ) -> Dict[str, Any]:
     """
-    Bin-pack rectangular pieces into as many sheets as needed.
+    Bin-pack rectangular or polygon pieces into as many sheets as needed.
 
     Inputs
-    - pieces: list of {id: str, width: int, height: int, name?: str}
+    - Rectangle piece: { id: str, width: int, height: int, name?: str }
+    - Polygon piece:   { id: str, polygon: [[x,y], ...], name?: str }
     - sheet_width, sheet_height: dimensions of a single sheet
-    - allow_rotation: whether rectangles may be rotated 90 degrees
-    - kerf: padding to apply around each piece (mm) to account for cut width
+    - allow_rotation: whether shapes may rotate
+    - kerf: cut width (mm). For polygons we offset by kerf/2 for clearance.
 
     Output
     - {
-            sheets: [
-              { index: int, width: int, height: int,
-                    rects: [ { piece_id, name, x, y, w, h, rotated } ]
-              }
-            ]
+        sheets: [
+          { index, width, height,
+            rects: [ { piece_id, name, x, y, w, h, rotated } ],
+            polygons: [ { piece_id, name, angle, points: [[x,y], ...] } ]
+          }
+        ]
       }
     """
     if sheet_width <= 0 or sheet_height <= 0:
         raise ValueError("Sheet size must be positive")
 
+    contains_polygons = any("polygon" in p for p in pieces)
+    if contains_polygons:
+        if _IRREGULAR_DEPS_OK:
+            return _pack_irregular(
+                pieces, sheet_width, sheet_height, allow_rotation, kerf, packing_mode
+            )
+        # Fallback: pack by bounding boxes if shapely/pyclipper are unavailable
+        rect_like = []
+        for p in pieces:
+            if "polygon" in p and p["polygon"]:
+                xs = [pt[0] for pt in p["polygon"]]
+                ys = [pt[1] for pt in p["polygon"]]
+                w = max(xs) - min(xs)
+                h = max(ys) - min(ys)
+                rect_like.append(
+                    {
+                        "id": p["id"],
+                        "width": int(round(w)),
+                        "height": int(round(h)),
+                        "name": p.get("name"),
+                    }
+                )
+            else:
+                rect_like.append(p)
+        result = _pack_rectangles(
+            rect_like, sheet_width, sheet_height, allow_rotation, kerf
+        )
+        for s in result["sheets"]:
+            s.setdefault("polygons", [])
+        return result
+    else:
+        return _pack_rectangles(pieces, sheet_width, sheet_height, allow_rotation, kerf)
+
+
+def _pack_rectangles(
+    pieces: List[Dict[str, Any]],
+    sheet_width: int,
+    sheet_height: int,
+    allow_rotation: bool,
+    kerf: int,
+) -> Dict[str, Any]:
     # Map id -> original dims/name for post-processing
     id_map = {
         p["id"]: {
@@ -54,8 +119,7 @@ def pack(
 
     packer.pack()
 
-    # Gather placements grouped by bin index using rect_list()
-    # rect_list entries: (bin_index, x, y, w, h, rid)
+    # Gather placements grouped by bin index
     sheets_map: Dict[int, Dict[str, Any]] = {}
     for bin_index, x, y, w, h, rid in packer.rect_list():
         if bin_index not in sheets_map:
@@ -64,13 +128,14 @@ def pack(
                 "width": int(sheet_width),
                 "height": int(sheet_height),
                 "rects": [],
+                "polygons": [],
             }
         meta = id_map.get(rid, {})
         orig_w = meta.get("w", w)
         orig_h = meta.get("h", h)
         adj_w = max(1, int(w) - kerf)
         adj_h = max(1, int(h) - kerf)
-        rotated = (adj_w == orig_h and adj_h == orig_w) if allow_rotation else False
+        angle = 90 if allow_rotation and (adj_w == orig_h and adj_h == orig_w) else 0
         sheets_map[bin_index]["rects"].append(
             {
                 "piece_id": rid,
@@ -79,9 +144,380 @@ def pack(
                 "y": int(y),
                 "w": int(adj_w),
                 "h": int(adj_h),
-                "rotated": bool(rotated),
+                "angle": angle,
             }
         )
 
     sheets = [sheets_map[i] for i in sorted(sheets_map.keys())]
     return {"sheets": sheets}
+
+
+# -------- Irregular nesting (polygon packing) --------
+
+
+def _pack_irregular(
+    pieces: List[Dict[str, Any]],
+    sheet_width: int,
+    sheet_height: int,
+    allow_rotation: bool,
+    kerf: int,
+    packing_mode: str = "heuristic",
+) -> Dict[str, Any]:
+    """
+    Simple grid placement, heuristic bottom-left placement, or exhaustive grid placement:
+    - Converts rectangles to polygons where needed.
+    - Offsets each polygon by kerf/2 for clearance.
+    - Simple: Basic grid scan without rotation.
+    - Heuristic: Bottom-left candidates with rotation.
+    - Exhaustive: Grid scanning with rotation.
+    - Opens new sheets when placement fails.
+    - No fallback between modes.
+
+    Note: For best results set small angle steps but it will be slower.
+    """
+    assert _IRREGULAR_DEPS_OK, "Shapely required for polygon packing"
+
+    # Config: adjust for quality vs speed
+    angle_step = 90 if not allow_rotation else 15  # degrees (heuristic phase)
+    angles = [a for a in range(0, 360, angle_step)] if allow_rotation else [0]
+
+    sheet_poly = box(0, 0, sheet_width, sheet_height)
+    kerf_clearance = max(0.0, float(kerf) / 2.0)
+
+    # Normalize inputs: build shapely polygons and meta
+    norm_pieces = []
+    for p in pieces:
+        pid = p["id"]
+        name = p.get("name") or pid
+        if "polygon" in p and p["polygon"]:
+            pts = [(float(x), float(y)) for x, y in p["polygon"]]
+            poly = Polygon(pts)
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+        else:
+            w = float(p["width"])
+            h = float(p["height"])
+            poly = box(0, 0, w, h)
+
+        if poly.area <= 0:
+            raise ValueError(f"Piece {pid} has non-positive area")
+
+        inflated = _offset_polygon(poly, kerf_clearance) if kerf_clearance > 0 else poly
+
+        norm_pieces.append(
+            {
+                "id": pid,
+                "name": name,
+                "base": poly,
+                "inflated": inflated,
+            }
+        )
+
+    # Sort by descending area to place big parts first
+    norm_pieces.sort(key=lambda it: it["inflated"].area, reverse=True)
+
+    sheets: List[Dict[str, Any]] = []
+    current_sheet = _new_sheet(len(sheets), sheet_width, sheet_height)
+    placed_inflated = []  # inflated, absolute
+    placed_base = []  # base, absolute
+    candidates = [(0.0, 0.0)]
+
+    for item in norm_pieces:
+        if packing_mode == "simple":
+            # Use simple placement only
+            placed = _place_on_sheet_simple(
+                item, sheet_poly, placed_inflated, use_inflated=True
+            )
+        elif packing_mode == "exhaustive":
+            # Use exhaustive placement only
+            placed = _place_on_sheet_exhaustive(
+                item, sheet_poly, placed_inflated, angles, use_inflated=True
+            )
+        else:
+            # Use heuristic placement only
+            placed = _place_on_sheet(
+                item, sheet_poly, placed_inflated, candidates, angles, use_inflated=True
+            )
+        if not placed:
+            # Open new sheet
+            sheets.append(current_sheet)
+            current_sheet = _new_sheet(len(sheets), sheet_width, sheet_height)
+            placed_inflated = []
+            placed_base = []
+            candidates = [(0.0, 0.0)]
+            if packing_mode == "simple":
+                placed = _place_on_sheet_simple(
+                    item, sheet_poly, placed_inflated, use_inflated=True
+                )
+            elif packing_mode == "exhaustive":
+                placed = _place_on_sheet_exhaustive(
+                    item, sheet_poly, placed_inflated, angles, use_inflated=True
+                )
+            else:
+                placed = _place_on_sheet(
+                    item,
+                    sheet_poly,
+                    placed_inflated,
+                    candidates,
+                    angles,
+                    use_inflated=True,
+                )
+            if not placed:
+                # Fallback: try without kerf inflation for this item to avoid hard failure
+                if packing_mode == "simple":
+                    placed = _place_on_sheet_simple(
+                        item, sheet_poly, placed_inflated, use_inflated=False
+                    )
+                elif packing_mode == "exhaustive":
+                    placed = _place_on_sheet_exhaustive(
+                        item, sheet_poly, placed_inflated, angles, use_inflated=False
+                    )
+                else:
+                    placed = _place_on_sheet(
+                        item,
+                        sheet_poly,
+                        placed_inflated,
+                        candidates,
+                        angles,
+                        use_inflated=False,
+                    )
+                if not placed:
+                    raise RuntimeError(
+                        f"Failed to place piece {item['id']} on an empty sheet (check dimensions)"
+                    )
+
+        base_abs, inflated_abs, angle_deg = placed
+        placed_inflated.append(inflated_abs)
+        placed_base.append(base_abs)
+
+        # Record result polygon points
+        coords = list(base_abs.exterior.coords)[:-1]
+        current_sheet["polygons"].append(
+            {
+                "piece_id": item["id"],
+                "name": item["name"],
+                "angle": angle_deg,
+                "points": [[int(round(x)), int(round(y))] for (x, y) in coords],
+            }
+        )
+
+        # Back-compat rectangle list (bounding box)
+        minx, miny, maxx, maxy = base_abs.bounds
+        current_sheet["rects"].append(
+            {
+                "piece_id": item["id"],
+                "name": item["name"],
+                "x": int(round(minx)),
+                "y": int(round(miny)),
+                "w": int(round(maxx - minx)),
+                "h": int(round(maxy - miny)),
+                "angle": int(angle_deg),
+            }
+        )
+
+        # Expand candidates: right and above of placed bbox
+        bx_min, by_min, bx_max, by_max = inflated_abs.bounds
+        candidates.extend(
+            [
+                (bx_max, by_min),
+                (bx_min, by_max),
+            ]
+        )
+        candidates = _prune_candidates(candidates, sheet_width, sheet_height)
+
+    sheets.append(current_sheet)
+    return {"sheets": sheets}
+
+
+def _place_on_sheet(
+    item, sheet_poly, placed_inflated, candidates, angles, use_inflated: bool = True
+):
+    """
+    Try to place item at one of the candidate positions with any allowed angle,
+    using inflated polygon for collision checks. Returns (base_abs, inflated_abs, angle) or None.
+    """
+    best = None
+    placed_union = unary_union(placed_inflated) if placed_inflated else None
+
+    for angle in angles:
+        base_rot = shp_rotate(item["base"], angle, origin=(0, 0), use_radians=False)
+        inf_src = item["inflated"] if use_inflated else item["base"]
+        inf_rot = shp_rotate(inf_src, angle, origin=(0, 0), use_radians=False)
+
+        # Normalize so candidate refers to bbox bottom-left
+        minx, miny, _, _ = inf_rot.bounds
+        base_norm = shp_translate(base_rot, xoff=-minx, yoff=-miny)
+        inf_norm = shp_translate(inf_rot, xoff=-minx, yoff=-miny)
+
+        for cx, cy in candidates:
+            base_abs = shp_translate(base_norm, xoff=cx, yoff=cy)
+            inf_abs = shp_translate(inf_norm, xoff=cx, yoff=cy)
+
+            # allow shapes touching boundary; contains() is strict, covers() includes boundary
+            if not sheet_poly.covers(inf_abs):
+                continue
+            # Only block real overlaps (area > 0); allow edge/vertex touches
+            if placed_union and inf_abs.intersection(placed_union).area > 0:
+                continue
+
+            # Prefer bottom-left (lower y, then lower x)
+            bx, by, _, _ = inf_abs.bounds
+            key = (by, bx)
+            if best is None or key < best[0]:
+                best = (key, (base_abs, inf_abs, angle))
+
+    return None if best is None else best[1]
+
+
+def _place_on_sheet_exhaustive(
+    item,
+    sheet_poly,
+    placed_inflated,
+    angles,
+    use_inflated: bool = True,
+    grid_step: int = 5,
+):
+    """
+    Slower but more thorough search: scan a grid across the sheet for each angle.
+    grid_step is in same units as sheet (mm). Returns (base_abs, inflated_abs, angle) or None.
+    """
+    placed_union = unary_union(placed_inflated) if placed_inflated else None
+    best = None
+
+    for angle in angles:
+        base_rot = shp_rotate(item["base"], angle, origin=(0, 0), use_radians=False)
+        inf_src = item["inflated"] if use_inflated else item["base"]
+        inf_rot = shp_rotate(inf_src, angle, origin=(0, 0), use_radians=False)
+
+        # Normalize to origin bottom-left
+        minx, miny, maxx, maxy = inf_rot.bounds
+        base_norm = shp_translate(base_rot, xoff=-minx, yoff=-miny)
+        inf_norm = shp_translate(inf_rot, xoff=-minx, yoff=-miny)
+        w = maxx - minx
+        h = maxy - miny
+        max_x = max(0, int(ceil(sheet_poly.bounds[2] - w)))
+        max_y = max(0, int(ceil(sheet_poly.bounds[3] - h)))
+
+        y = 0
+        while y <= max_y:
+            x = 0
+            while x <= max_x:
+                base_abs = shp_translate(base_norm, xoff=x, yoff=y)
+                inf_abs = shp_translate(inf_norm, xoff=x, yoff=y)
+
+                if not sheet_poly.covers(inf_abs):
+                    x += grid_step
+                    continue
+                if placed_union and inf_abs.intersection(placed_union).area > 0:
+                    x += grid_step
+                    continue
+
+                # Found a valid placement; choose the first (row-major ~ bottom-left)
+                key = (y, x)
+                if best is None or key < best[0]:
+                    best = (key, (base_abs, inf_abs, angle))
+                    # we can early-return; but keep minimal to ensure most bottom-left
+                    return best[1]
+
+                x += grid_step
+            y += grid_step
+
+    return None
+
+
+def _offset_polygon(poly: Any, delta: float) -> Any:
+    if delta == 0:
+        return poly
+    # Prefer pyclipper if available for crisp miters; otherwise use shapely buffer
+    if _HAS_PYCLIPPER:
+        scale = 1000.0
+        path = [
+            (int(round(x * scale)), int(round(y * scale)))
+            for (x, y) in list(poly.exterior.coords)[:-1]
+        ]
+        co = pyclipper.PyclipperOffset()
+        co.AddPath(path, pyclipper.JT_MITER, pyclipper.ET_CLOSEDPOLYGON)
+        out = co.Execute(int(round(delta * scale)))
+        if not out:
+            return poly
+        out_path = max(out, key=lambda p: abs(pyclipper.Area(p)))
+        out_pts = [(x / scale, y / scale) for (x, y) in out_path]
+        return Polygon(out_pts).buffer(0)
+    # shapely.buffer: join_style=2 => mitre (miter) similar to rect cuts
+    try:
+        return poly.buffer(delta, join_style=2)
+    except Exception:
+        return poly.buffer(delta)
+
+
+def _new_sheet(index: int, w: int, h: int) -> Dict[str, Any]:
+    return {
+        "index": index,
+        "width": int(w),
+        "height": int(h),
+        "rects": [],
+        "polygons": [],
+    }
+
+
+def _prune_candidates(cands, sheet_w, sheet_h):
+    # Keep unique and in-bounds candidates; snap negatives to zero
+    seen = set()
+    pruned = []
+    for x, y in cands:
+        x = 0.0 if x < 0 else x
+        y = 0.0 if y < 0 else y
+        if x > sheet_w or y > sheet_h:
+            continue
+        key = (round(x, 3), round(y, 3))
+        if key in seen:
+            continue
+        seen.add(key)
+        pruned.append((x, y))
+    pruned.sort(key=lambda t: (t[1], t[0]))
+    return pruned[:500]
+
+
+def _place_on_sheet_simple(item, sheet_poly, placed_inflated, use_inflated=True):
+    """
+    Very simple placement: try to place at (0,0) first, then scan in a basic grid.
+    No rotation, no complex candidates.
+    """
+    base_poly = item["base"]
+    inflated_poly = item["inflated"] if use_inflated else base_poly
+
+    # Try (0,0) first
+    if use_inflated:
+        if sheet_poly.covers(inflated_poly) and not any(
+            inflated_poly.intersects(p) and inflated_poly.intersection(p).area > 0
+            for p in placed_inflated
+        ):
+            return base_poly, inflated_poly, 0
+    else:
+        if sheet_poly.covers(base_poly) and not any(
+            base_poly.intersects(p) and base_poly.intersection(p).area > 0
+            for p in placed_inflated
+        ):
+            return base_poly, base_poly, 0
+
+    # Simple grid scan: step by 100mm
+    step = 100
+    for x in range(0, int(sheet_poly.bounds[2]), step):
+        for y in range(0, int(sheet_poly.bounds[3]), step):
+            translated = shp_translate(
+                inflated_poly if use_inflated else base_poly, xoff=x, yoff=y
+            )
+            if use_inflated:
+                if sheet_poly.covers(translated) and not any(
+                    translated.intersects(p) and translated.intersection(p).area > 0
+                    for p in placed_inflated
+                ):
+                    return shp_translate(base_poly, xoff=x, yoff=y), translated, 0
+            else:
+                if sheet_poly.covers(translated) and not any(
+                    translated.intersects(p) and translated.intersection(p).area > 0
+                    for p in placed_inflated
+                ):
+                    return translated, translated, 0
+
+    return None

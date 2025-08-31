@@ -99,7 +99,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 
 			{error && <div className="text-red-600 mb-3">{error}</div>}
 
-			<div className="grid gap-6 md:grid-cols-2">
+			<div className="flex flex-wrap gap-6">
 				{sheets.length === 0 && !loading && <div>No layout computed yet</div>}
 				{sheets.map((sheet) => (
 					<SheetSvg key={sheet.index} sheet={sheet} />
@@ -149,7 +149,7 @@ function SheetSvg({ sheet }) {
 	};
 
 	return (
-		<div>
+		<div className="flex-none" style={{ width: `${displayWidth}px`, maxWidth: "100%" }}>
 			<div className="text-sm text-gray-600 mb-1">
 				Sheet #{sheet.index + 1} – {sheet.width} x {sheet.height} mm
 			</div>
@@ -166,13 +166,25 @@ function SheetSvg({ sheet }) {
 					if (!pg.points || pg.points.length === 0) return null;
 					const d = `M ${pg.points.map(([x, y]) => `${x} ${y}`).join(" L ")} Z`;
 					const c = centroid(pg.points);
+					// compute bounding box for the polygon to pick a font size that fits
+					const xs = pg.points.map((p) => p[0]);
+					const ys = pg.points.map((p) => p[1]);
+					const minX = Math.min(...xs);
+					const maxX = Math.max(...xs);
+					const minY = Math.min(...ys);
+					const maxY = Math.max(...ys);
+					const bw = Math.max(0, maxX - minX);
+					const bh = Math.max(0, maxY - minY);
+					// pick font size as fraction of the smaller dimension, clamp for readability
+					const fontSizeMain = Math.max(8, Math.min(Math.round(Math.min(bw, bh) * 0.25), 48));
+					const fontSizeAngle = Math.max(8, Math.round(fontSizeMain * 0.65));
 					return (
 						<g key={`poly-${pg.piece_id}-${idx}`}>
 							<path d={d} fill="#ffe8cc" stroke="#9a3412" />
 							<text
 								x={c.x}
 								y={c.y}
-								fontSize="14"
+								fontSize={fontSizeMain}
 								fill="#0f172a"
 								textAnchor="middle"
 								alignmentBaseline="middle"
@@ -183,8 +195,8 @@ function SheetSvg({ sheet }) {
 							{pg.angle ? (
 								<text
 									x={c.x}
-									y={c.y + 16}
-									fontSize="12"
+									y={c.y + 26}
+									fontSize={fontSizeAngle}
 									fill="#334155"
 									textAnchor="middle"
 									alignmentBaseline="hanging"
@@ -198,17 +210,23 @@ function SheetSvg({ sheet }) {
 				})}
 				{sheet.rects
 					.filter((r) => !polyIds.has(r.piece_id))
-					.map((r) => (
-						<g key={r.piece_id}>
-							<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
-							<text x={r.x + 4} y={r.y + 14} fontSize="14" fill="#0f172a">
-								{r.name}
-							</text>
-							<text x={r.x + 4} y={r.y + r.h - 4} fontSize="12" fill="#334155">
-								{r.w}×{r.h} {r.angle && r.angle !== 0 ? `(${r.angle}°)` : ""}
-							</text>
-						</g>
-					))}
+					.map((r) => {
+						// pick font sizes based on rect size (use the smaller dimension)
+						const rSmall = Math.min(r.w, r.h);
+						const rLabelSize = Math.max(8, Math.min(Math.round(rSmall * 0.12), 20));
+						const rInfoSize = Math.max(6, Math.round(rLabelSize * 0.85));
+						return (
+							<g key={r.piece_id}>
+								<rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#cfe8ff" stroke="#1e40af" />
+								<text x={r.x + 4} y={r.y + 4 + rLabelSize} fontSize={rLabelSize} fill="#0f172a">
+									{r.name}
+								</text>
+								<text x={r.x + 4} y={r.y + r.h - 4} fontSize={rInfoSize} fill="#334155">
+									{r.w}×{r.h} {r.angle && r.angle !== 0 ? `(${r.angle}°)` : ""}
+								</text>
+							</g>
+						);
+					})}
 			</svg>
 		</div>
 	);

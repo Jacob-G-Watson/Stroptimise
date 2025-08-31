@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from typing import Optional
+import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -20,6 +21,23 @@ from services.optimiser import pack
 from services.export import sheets_to_pdf_bytes
 
 router = APIRouter()
+
+
+def _sanitize_filename(s: str) -> str:
+    """Make a safe filename fragment from an arbitrary string.
+
+    Keeps letters, numbers, underscores and hyphens. Replaces whitespace and
+    other punctuation with single hyphens and trims length.
+    """
+    if not s:
+        return "job"
+    name = s.strip()
+    # Remove characters that aren't word chars, spaces or hyphens
+    name = re.sub(r"[^\w\s-]", "", name)
+    # Collapse whitespace to single dash
+    name = re.sub(r"[\s]+", "-", name)
+    # Trim leading/trailing dashes and limit length
+    return name.strip("-")[:100]
 
 
 class LayoutRequest(BaseModel):
@@ -210,10 +228,15 @@ def export_job_layout_pdf(pid: str, body: LayoutRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     # Render to PDF bytes
-    pdf_bytes = sheets_to_pdf_bytes(result.get("sheets", []), title=f"job-{pid}-layout")
-    filename = f"job-{pid}-layout.pdf"
+    sanitized_name = _sanitize_filename(getattr(job, "name", None))
+    title = f"{sanitized_name}-layout"
+    pdf_bytes = sheets_to_pdf_bytes(result.get("sheets", []), title=title)
+    filename = f"{sanitized_name}-layout.pdf"
     return StreamingResponse(
         iter([pdf_bytes]),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "X-Filename": filename,
+        },
     )

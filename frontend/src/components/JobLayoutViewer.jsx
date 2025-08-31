@@ -66,7 +66,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = `job-${job.id}-layout.pdf`;
+			a.download = res.headers.get("X-Filename");
 			document.body.appendChild(a);
 			a.click();
 			a.remove();

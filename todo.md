@@ -14,7 +14,6 @@
 ## Function
 
 - Make it at least somewhat secure
-- Export data as a csv and json
 - Load data in from a csv or json modified export
 
 ## Optimiser

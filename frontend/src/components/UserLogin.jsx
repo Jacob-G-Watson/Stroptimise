@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { PrimaryButton } from "../utils/ThemeUtils";
 
 function UserLogin({ onLogin }) {
 	const [name, setName] = useState("");
@@ -24,39 +25,34 @@ function UserLogin({ onLogin }) {
 	};
 
 	return (
-		<div>
-			<div class="p-4 bg-white rounded-xl shadow text-center">
-				<span class="font-sans font-extrabold text-4xl text-[#7b8754]">
-					Strop<span class="text-[#3b2314]">timise</span>
-				</span>
-				<p class="mt-2 text-sm text-gray-500">Organic + Strong</p>
-			</div>
-			<div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-				<div className="bg-white p-6 rounded shadow w-full max-w-sm">
-					<h2 className="text-xl font-bold mb-4">Login</h2>
-					<form onSubmit={handleSubmit}>
-						<input
-							type="text"
-							placeholder="Username"
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							className="border px-2 py-1 mb-2 w-full"
-							required
-						/>
-						<input
-							type="password"
-							placeholder="Password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className="border px-2 py-1 mb-2 w-full"
-							required
-						/>
-						<button className="w-full px-4 py-2 bg-blue-500 text-white rounded" type="submit">
-							Login
-						</button>
-						{error && <div className="text-red-500 mt-2">{error}</div>}
-					</form>
-				</div>
+		<div className="flex flex-col items-center justify-center bg-stropt-beige">
+			<span className="font-sans font-extrabold p-20 text-9xl text-stropt-green">
+				Strop<span className="text-stropt-brown">timise</span>
+			</span>
+			<div className="p-4 bg-white rounded shadow mx-auto max-w-max stropt-border">
+				<h2 className="text-xl font-bold mb-4">Login</h2>
+				<form onSubmit={handleSubmit}>
+					<input
+						type="text"
+						placeholder="Username"
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+						className="border px-2 py-1 mb-2 w-full"
+						required
+					/>
+					<input
+						type="password"
+						placeholder="Password"
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						className="border px-2 py-1 mb-2 w-full"
+						required
+					/>
+					<PrimaryButton className="w-full" type="submit">
+						Login
+					</PrimaryButton>
+					{error && <div className="text-red-500 mt-2">{error}</div>}
+				</form>
 			</div>
 		</div>
 	);

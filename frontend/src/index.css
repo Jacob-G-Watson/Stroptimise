@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
+
+:root {
+	--stropt-green: #7b8754;
+	--stropt-green-light: #9aa76a;
+	--stropt-brown: #3b2314;
+	--stropt-beige: #e9dcc2;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+}
+
+body {
+	@apply bg-stropt-beige text-stropt-brown font-sans;
+	font-family: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+.container-card {
+	background-color: var(--stropt-green);
+	border: 8px solid var(--stropt-brown);
+	color: var(--stropt-brown);
+}
+
+/* Semantic utility classes for site chrome */
+.stropt-border {
+	border: 3px solid var(--stropt-brown);
+}
+.stropt-border-sm {
+	border: 1px solid var(--stropt-brown);
+}
+.stropt-border-thick {
+	border: 6px solid var(--stropt-brown);
+}
+.stropt-border-medium {
+	border: 4px solid var(--stropt-brown);
+}
+
+.stropt-logout-border {
+	border: 2px solid #7b8754;
+}
+.stropt-logo-border {
+	border: 2px solid var(--stropt-brown);
+}

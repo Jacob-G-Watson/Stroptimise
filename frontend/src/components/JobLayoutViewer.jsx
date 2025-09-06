@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { authFetch } from "../services/authFetch";
-import SheetSvg from "./SheetSvg";
+import SheetSvg from "../utils/SheetSvg";
 import { useParams } from "react-router-dom";
-import SelectionContext from "../contexts/SelectionContext";
+import SelectionContext from "../utils/SelectionContext";
+import { PrimaryButton } from "../utils/ThemeUtils";
 
 function JobLayoutViewer({ job: propJob, onOptimised }) {
 	const { jobId } = useParams();
@@ -151,10 +152,10 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 	};
 
 	return (
-		<div className="bg-white p-4 rounded shadow my-4">
+		<div className="p-4 bg-white rounded shadow mx-auto mt-6 stropt-border min-w-[50%] w-auto max-w-[90vw]">
 			<div className="mb-4 flex flex-wrap items-end gap-3">
 				<div>
-					<label className="block text-sm text-gray-600">Sheet width (mm)</label>
+					<label className="block text-sm text-stropt-brown">Sheet width (mm)</label>
 					<input
 						type="number"
 						value={sheetWidth}
@@ -163,7 +164,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					/>
 				</div>
 				<div>
-					<label className="block text-sm text-gray-600">Sheet height (mm)</label>
+					<label className="block text-sm text-stropt-brown">Sheet height (mm)</label>
 					<input
 						type="number"
 						value={sheetHeight}
@@ -172,7 +173,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					/>
 				</div>
 				<div>
-					<label className="block text-sm text-gray-600">Kerf (mm)</label>
+					<label className="block text-sm text-stropt-brown">Kerf (mm)</label>
 					<input
 						type="number"
 						value={kerf}
@@ -181,7 +182,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					/>
 				</div>
 				<div>
-					<label className="block text-sm text-gray-600">Packing mode</label>
+					<label className="block text-sm text-stropt-brown">Packing mode</label>
 					<select
 						value={packingMode}
 						onChange={(e) => setPackingMode(e.target.value)}
@@ -200,16 +201,12 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					/>
 					Allow rotation
 				</label>
-				<button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={handleCompute} disabled={loading}>
+				<PrimaryButton className="" onClick={handleCompute} disabled={loading}>
 					{loading ? "Computing..." : "Compute layout"}
-				</button>
-				<button
-					className="px-3 py-1 bg-emerald-600 text-white rounded"
-					onClick={handleExportPdf}
-					disabled={!!loading}
-				>
+				</PrimaryButton>
+				<PrimaryButton className="" onClick={handleExportPdf} disabled={!!loading}>
 					Export Layout as PDF
-				</button>
+				</PrimaryButton>
 				<div className="relative inline-block">
 					<select
 						className="ml-2 px-2 py-1 border rounded"
@@ -231,7 +228,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 				</div>
 			</div>
 
-			{error && <div className="text-red-600 mb-3">{error}</div>}
+			{error && <div className="text-red-500 mb-3">{error}</div>}
 
 			<div className="flex flex-wrap gap-6">
 				{sheets.length === 0 && !loading && <div>No layout computed yet</div>}

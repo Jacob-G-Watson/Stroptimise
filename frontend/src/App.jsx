@@ -6,8 +6,8 @@ import JobDetails from "./components/JobDetails";
 import CabinetDetails from "./components/CabinetDetails";
 import JobLayoutViewer from "./components/JobLayoutViewer";
 import Navbar from "./components/Navbar";
-import SelectionContext from "./contexts/SelectionContext";
-import ProtectedRoute from "./components/ProtectedRoute";
+import SelectionContext from "./utils/SelectionContext";
+import ProtectedRoute from "./utils/ProtectedRoute";
 import { useSession } from "./services/useSession";
 
 function App() {
@@ -24,7 +24,7 @@ function App() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-100 p-4">
+		<div className=" bg-stropt-beige p-4">
 			<SelectionContext.Provider value={{ job, setJob, cabinet, setCabinet }}>
 				<Navbar user={user} onLogout={handleLogout} />
 				<Routes>

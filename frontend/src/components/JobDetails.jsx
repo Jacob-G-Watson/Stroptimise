@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import SelectionContext from "../contexts/SelectionContext";
+import SelectionContext from "../utils/SelectionContext";
 import { authFetch } from "../services/authFetch";
 import CabinetDetails from "./CabinetDetails";
+import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 
 function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 	const params = useParams();
@@ -12,6 +13,9 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 	const [cabinets, setCabinets] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [adding, setAdding] = useState(false);
+	const [cabinetName, setCabinetName] = useState("");
+	const [expanded, setExpanded] = useState({});
 
 	useEffect(() => {
 		let cancelled = false;
@@ -31,7 +35,6 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 				}
 			} catch (e) {
 				if (e.name === "AbortError") return;
-				// ignore other errors
 			}
 		})();
 
@@ -64,10 +67,7 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 		};
 	}, [job, jobIdFromParams]);
 
-	if (!job) return null;
-
-	const [adding, setAdding] = useState(false);
-	const [cabinetName, setCabinetName] = useState("");
+	const toggleExpanded = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
 	const handleAddCabinet = async (e) => {
 		e.preventDefault();
@@ -90,21 +90,14 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 		}
 	};
 
-	const [expanded, setExpanded] = useState({});
-
-	const toggleExpanded = (id) => {
-		setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
-	};
+	if (!job) return null;
 
 	return (
-		<div className="p-4 bg-white rounded shadow w-full max-w-md md:max-w-3xl mx-auto mt-6">
-			<h2 className="text-xl font-bold mb-2">Current Job: {job.name || job.id}</h2>
-			<button
-				className="mb-4 mr-2 px-3 py-1 bg-green-600 text-white rounded"
-				onClick={() => handleViewLayout(true)}
-			>
+		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
+			<h2 className="text-xl font-bold mb-2 text-stropt-brown">Current Job: {job.name || job.id}</h2>
+			<PrimaryButton className="mb-4 mr-2" onClick={() => handleViewLayout(true)}>
 				View Layout
-			</button>
+			</PrimaryButton>
 			{loading && <div>Loading cabinets...</div>}
 			{error && <div className="text-red-500">{error}</div>}
 
@@ -122,17 +115,11 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 									>
 										{expanded[cabinet.id] ? "▾" : "▸"}
 									</button>
-									<span className="font-medium">{cabinet.name || cabinet.id}</span>
+									<span className="font-medium text-stropt-brown">{cabinet.name || cabinet.id}</span>
 								</div>
 								<div>
-									<button
-										className="px-2 py-1 bg-yellow-500 text-white rounded mr-2"
-										onClick={() => onEditCabinet(cabinet)}
-									>
-										Edit
-									</button>
-									<button
-										className="px-2 py-1 bg-red-600 text-white rounded"
+									<PrimaryButton onClick={() => onEditCabinet(cabinet)}>Edit</PrimaryButton>
+									<DangerButton
 										onClick={async () => {
 											if (!window.confirm("Delete this cabinet and its pieces?")) return;
 											try {
@@ -147,19 +134,15 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 										}}
 									>
 										Delete
-									</button>
+									</DangerButton>
 								</div>
 							</div>
 
-							{expanded[cabinet.id] && (
-								<div className="p-2 bg-gray-50">
-									{/* render CabinetDetails which includes pieces list and add-piece form */}
-									<CabinetDetails cabinet={cabinet} />
-								</div>
-							)}
+							{expanded[cabinet.id] && <CabinetDetails cabinet={cabinet} />}
 						</li>
 					))}
 				</ul>
+
 				<form onSubmit={handleAddCabinet} className="mb-4 flex gap-2 items-center">
 					<input
 						type="text"
@@ -169,9 +152,9 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 						className="border px-2 py-1 rounded"
 						required
 					/>
-					<button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded" disabled={adding}>
+					<PrimaryButton type="submit" className="" disabled={adding}>
 						{adding ? "Adding..." : "Add Cabinet"}
-					</button>
+					</PrimaryButton>
 				</form>
 			</div>
 		</div>

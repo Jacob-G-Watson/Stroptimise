@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import SelectionContext from "../contexts/SelectionContext";
+import SelectionContext from "./SelectionContext";
 
 export default function Breadcrumbs() {
 	const { pathname } = useLocation();
@@ -18,7 +18,7 @@ export default function Breadcrumbs() {
 		crumbs.push({ label: cabinet?.name || parts[3], to: `/jobs/${jobId}/cabinet/${parts[3]}` });
 
 	return (
-		<ol className="flex items-center gap-2 text-gray-600" aria-label="Breadcrumb">
+		<ol className="flex items-center gap-2 text-stropt-brown" aria-label="Breadcrumb">
 			{crumbs.map((c, i) => (
 				<React.Fragment key={c.to}>
 					{i > 0 && <span className="text-gray-400">/</span>}
@@ -26,7 +26,7 @@ export default function Breadcrumbs() {
 						<NavLink
 							to={c.to}
 							className={({ isActive }) =>
-								`hover:underline ${isActive ? "text-blue-600" : "text-gray-700"}`
+								`hover:underline ${isActive ? "text-stropt-green" : "text-stropt-brown"}`
 							}
 						>
 							{c.label}

@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import React from "react";
-import Breadcrumbs from "./Breadcrumbs";
+import Breadcrumbs from "../utils/Breadcrumbs";
+import { DangerButton } from "../utils/ThemeUtils";
 
 function Navbar({ user, onLogout }) {
 	const navigate = useNavigate();
@@ -17,30 +18,30 @@ function Navbar({ user, onLogout }) {
 	};
 
 	return (
-		<nav
-			className="bg-gray-200 px-4 py-2 flex items-center text-sm rounded mb-4"
-			role="navigation"
-			aria-label="Main"
-		>
+		<nav className=" bg-white p-4 flex text-sm rounded mb-4 stropt-border" role="navigation" aria-label="Main">
 			<div className="flex items-center gap-2">
-				<div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center text-white font-bold text-lg select-none">
+				<div className="w-8 h-8 bg-stropt-green rounded flex items-center justify-center text-stropt-beige font-bold text-lg select-none stropt-logo-border">
 					O
 				</div>
-				<span className="font-bold text-gray-700">Stroptimise</span>
+				<span className="font-bold text-stropt-brown">Stroptimise</span>
 			</div>
 
 			<div className="flex items-center gap-4 ml-6">
 				{!user ? (
 					<NavLink
 						to="/"
-						className={({ isActive }) => `font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`}
+						className={({ isActive }) =>
+							`font-semibold ${isActive ? "text-stropt-green" : "text-stropt-brown"}`
+						}
 					>
 						Login
 					</NavLink>
 				) : (
 					<NavLink
 						to="/jobs"
-						className={({ isActive }) => `font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`}
+						className={({ isActive }) =>
+							`font-semibold ${isActive ? "text-stropt-green" : "text-stropt-brown"}`
+						}
 					>
 						Jobs
 					</NavLink>
@@ -49,9 +50,9 @@ function Navbar({ user, onLogout }) {
 			</div>
 			<div className="ml-auto">
 				{user ? (
-					<button onClick={handleLogout} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+					<DangerButton onClick={handleLogout} className="px-3 py-1 stropt-logout-border">
 						Logout
-					</button>
+					</DangerButton>
 				) : null}
 			</div>
 		</nav>

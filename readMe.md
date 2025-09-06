@@ -1,5 +1,9 @@
 # READ ME
 
+## Local Docker
+
+docker-compose build --no-cache ; docker-compose up -d
+
 ## Self hosting
 
 - npm build

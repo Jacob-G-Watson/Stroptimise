@@ -1,3 +1,7 @@
+# Copy this file to .env and customize for your local machine (Windows or Linux).
+# The values below use repository-relative paths which work with Docker Compose
+# when run from the repository root. Adjust to absolute paths if you prefer.
+
 # Host path to SQLite DB file (defaults to the repo DB)
 STROPTIMISE_DB=./server/db.sqlite3
 

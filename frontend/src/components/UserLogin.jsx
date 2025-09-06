@@ -13,7 +13,10 @@ function UserLogin({ onLogin }) {
 			body: JSON.stringify({ name, password }),
 		});
 		if (res.ok) {
-			const user = await res.json();
+			const data = await res.json();
+			const { access_token, user } = data;
+			// Store access token in memory (window) for simplicity; in production consider context/state
+			window.__access_token = access_token;
 			onLogin(user);
 		} else {
 			setError("Invalid username or password");

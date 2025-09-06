@@ -1,11 +1,13 @@
 import json
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 from sqlmodel import Session, select
 
 from db import engine
 from models import Cabinet, Piece
 
-router = APIRouter()
+from .auth import get_current_user
+
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.post("/cabinets/{cid}/pieces")

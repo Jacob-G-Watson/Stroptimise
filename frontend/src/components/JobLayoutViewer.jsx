@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { authFetch } from "../authFetch";
 import SheetSvg from "./SheetSvg";
 
 function JobLayoutViewer({ job, onOptimised }) {
@@ -16,7 +17,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 		setLoading(true);
 		setError("");
 		try {
-			const res = await fetch(`/api/jobs/${job.id}/layout`, {
+			const res = await authFetch(`/api/jobs/${job.id}/layout`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -47,7 +48,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 		if (!job?.id) return;
 		setError("");
 		try {
-			const res = await fetch(`/api/jobs/${job.id}/layout/export/pdf`, {
+			const res = await authFetch(`/api/jobs/${job.id}/layout/export/pdf`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -80,7 +81,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 		if (!job?.id) return;
 		setError("");
 		try {
-			const res = await fetch(`/api/jobs/${job.id}/cutsheet.pdf`);
+			const res = await authFetch(`/api/jobs/${job.id}/cutsheet.pdf`);
 			if (!res.ok) {
 				const msg = await res.text();
 				throw new Error(msg || "Failed to export cutsheet PDF");
@@ -102,7 +103,7 @@ function JobLayoutViewer({ job, onOptimised }) {
 	const quickDownload = async (path) => {
 		if (!job?.id) return;
 		try {
-			const res = await fetch(`/api/jobs/${job.id}/${path}`);
+			const res = await authFetch(`/api/jobs/${job.id}/${path}`);
 			if (!res.ok) throw new Error(`Failed to download ${path}`);
 			const blob = await res.blob();
 			const url = window.URL.createObjectURL(blob);

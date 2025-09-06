@@ -1,11 +1,11 @@
 -- User
 INSERT INTO
-    user (id, name, password)
+    user (id, name, password_hash)
 VALUES
     (
         '11111111-1111-1111-1111-111111111111',
         'demo',
-        'demo'
+        '$argon2id$v=19$m=65536,t=3,p=4$XOXrlFXbhKcJGAlkXvlHdw$pEeHFWfUCd8QRb/kkD48R77IBcyrDk7grvjqipHZeKw'
     );
 
 -- Job

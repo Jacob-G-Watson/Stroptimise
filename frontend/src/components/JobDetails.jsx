@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { authFetch } from "../authFetch";
 import CabinetDetails from "./CabinetDetails";
 
 function JobDetails({ job, onEditCabinet, handleViewLayout }) {
@@ -9,7 +10,7 @@ function JobDetails({ job, onEditCabinet, handleViewLayout }) {
 	useEffect(() => {
 		if (!job?.id) return;
 		setLoading(true);
-		fetch(`/api/jobs/${job.id}/cabinets`)
+		authFetch(`/api/jobs/${job.id}/cabinets`)
 			.then((res) => res.json())
 			.then((data) => {
 				setCabinets(Array.isArray(data) ? data : []);
@@ -31,7 +32,7 @@ function JobDetails({ job, onEditCabinet, handleViewLayout }) {
 		setAdding(true);
 		setError("");
 		try {
-			const res = await fetch(`/api/jobs/${job.id}/cabinets`, {
+			const res = await authFetch(`/api/jobs/${job.id}/cabinets`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: cabinetName }),
@@ -93,7 +94,7 @@ function JobDetails({ job, onEditCabinet, handleViewLayout }) {
 										onClick={async () => {
 											if (!window.confirm("Delete this cabinet and its pieces?")) return;
 											try {
-												const res = await fetch(`/api/cabinets/${cabinet.id}`, {
+												const res = await authFetch(`/api/cabinets/${cabinet.id}`, {
 													method: "DELETE",
 												});
 												if (!res.ok) throw new Error("Failed to delete cabinet");

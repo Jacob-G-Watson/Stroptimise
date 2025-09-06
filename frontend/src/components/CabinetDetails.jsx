@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { authFetch } from "../authFetch";
 
 function CabinetDetails({ cabinet }) {
 	const [pieces, setPieces] = useState([]);
@@ -14,7 +15,7 @@ function CabinetDetails({ cabinet }) {
 	React.useEffect(() => {
 		if (!cabinet?.id) return;
 		setLoading(true);
-		fetch(`/api/cabinets/${cabinet.id}/pieces`)
+		authFetch(`/api/cabinets/${cabinet.id}/pieces`)
 			.then((res) => res.json())
 			.then((data) => {
 				setPieces(Array.isArray(data) ? data : []);
@@ -31,7 +32,7 @@ function CabinetDetails({ cabinet }) {
 		setAdding(true);
 		setError("");
 		try {
-			const res = await fetch(`/api/cabinets/${cabinet.id}/pieces`, {
+			const res = await authFetch(`/api/cabinets/${cabinet.id}/pieces`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -61,7 +62,7 @@ function CabinetDetails({ cabinet }) {
 		setError("");
 		setDeletingIds((prev) => new Set(prev).add(id));
 		try {
-			const res = await fetch(`/api/pieces/${id}`, { method: "DELETE" });
+			const res = await authFetch(`/api/pieces/${id}`, { method: "DELETE" });
 			if (!res.ok) throw new Error("Failed to delete piece");
 			setPieces((prev) => prev.filter((p) => p.id !== id));
 		} catch (err) {

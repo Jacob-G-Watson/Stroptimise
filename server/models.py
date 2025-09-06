@@ -11,7 +11,7 @@ def guid():
 class User(SQLModel, table=True):
     id: str = Field(default_factory=guid, primary_key=True)
     name: str
-    password: str
+    password_hash: str | None = None
     jobs: List["Job"] = Relationship(back_populates="user")
     # todo kerf should be per user
 

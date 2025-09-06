@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -20,7 +20,9 @@ from models import (
 from services.optimiser import pack
 from services.export import sheets_to_pdf_bytes
 
-router = APIRouter()
+from .auth import get_current_user
+
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 def _sanitize_filename(s: str) -> str:

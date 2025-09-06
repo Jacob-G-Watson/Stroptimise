@@ -1,10 +1,9 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import SelectionContext from "../contexts/SelectionContext";
 import React from "react";
+import Breadcrumbs from "./Breadcrumbs";
 
 function Navbar({ user, onLogout }) {
 	const navigate = useNavigate();
-	const { job, cabinet } = React.useContext(SelectionContext);
 
 	const handleLogout = async () => {
 		try {
@@ -18,7 +17,11 @@ function Navbar({ user, onLogout }) {
 	};
 
 	return (
-		<nav className="bg-gray-200 px-4 py-2 flex items-center text-sm rounded mb-4">
+		<nav
+			className="bg-gray-200 px-4 py-2 flex items-center text-sm rounded mb-4"
+			role="navigation"
+			aria-label="Main"
+		>
 			<div className="flex items-center gap-2">
 				<div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center text-white font-bold text-lg select-none">
 					O
@@ -26,7 +29,7 @@ function Navbar({ user, onLogout }) {
 				<span className="font-bold text-gray-700">Stroptimise</span>
 			</div>
 
-			<div className="flex items-center gap-2 ml-6">
+			<div className="flex items-center gap-4 ml-6">
 				{!user ? (
 					<NavLink
 						to="/"
@@ -35,54 +38,14 @@ function Navbar({ user, onLogout }) {
 						Login
 					</NavLink>
 				) : (
-					<>
-						<NavLink
-							to="/jobs"
-							className={({ isActive }) =>
-								`font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`
-							}
-						>
-							Jobs
-						</NavLink>
-						{job && (
-							<>
-								<span className="mx-2 text-gray-400">/</span>
-								<NavLink
-									to={`/jobs/${job.id}`}
-									className={({ isActive }) =>
-										`font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`
-									}
-								>
-									{job.name || job.id}
-								</NavLink>
-								<>
-									<span className="mx-2 text-gray-400">/</span>
-									<NavLink
-										to={`/jobs/${job.id}/layout`}
-										className={({ isActive }) =>
-											`font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`
-										}
-									>
-										Layout
-									</NavLink>
-								</>
-							</>
-						)}
-						{cabinet && (
-							<>
-								<span className="mx-2 text-gray-400">/</span>
-								<NavLink
-									to={`/jobs/${job?.id}/cabinet/${cabinet.id}`}
-									className={({ isActive }) =>
-										`font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`
-									}
-								>
-									{cabinet.name || cabinet.id}
-								</NavLink>
-							</>
-						)}
-					</>
+					<NavLink
+						to="/jobs"
+						className={({ isActive }) => `font-semibold ${isActive ? "text-blue-600" : "text-gray-700"}`}
+					>
+						Jobs
+					</NavLink>
 				)}
+				{user && <Breadcrumbs />}
 			</div>
 			<div className="ml-auto">
 				{user ? (

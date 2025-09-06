@@ -1,8 +1,39 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { authFetch } from "../authFetch";
 import SheetSvg from "./SheetSvg";
+import { useParams } from "react-router-dom";
+import SelectionContext from "../contexts/SelectionContext";
 
-function JobLayoutViewer({ job, onOptimised }) {
+function JobLayoutViewer({ job: propJob, onOptimised }) {
+	const { jobId } = useParams();
+	const { setJob: setCtxJob, job: ctxJob } = React.useContext(SelectionContext);
+	const [fetchedJob, setFetchedJob] = useState(null);
+
+	// Determine job precedence: prop -> context -> fetched
+	const job = propJob || ctxJob || fetchedJob;
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!job && jobId) {
+			(async () => {
+				try {
+					const r = await authFetch(`/api/jobs/${jobId}`);
+					if (r.ok) {
+						const j = await r.json();
+						if (!cancelled) {
+							setFetchedJob(j);
+							setCtxJob && setCtxJob(j);
+						}
+					}
+				} catch (_) {
+					/* ignore */
+				}
+			})();
+		}
+		return () => {
+			cancelled = true;
+		};
+	}, [job, jobId, setCtxJob]);
 	const [sheetWidth, setSheetWidth] = useState(2400); // mm
 	const [sheetHeight, setSheetHeight] = useState(1200); // mm
 	const [allowRotation, setAllowRotation] = useState(true);

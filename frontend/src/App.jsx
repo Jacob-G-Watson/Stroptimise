@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { authFetch } from "./authFetch";
 import UserLogin from "./components/UserLogin";
 import UserJobsList from "./components/UserJobsList";
 import JobDetails from "./components/JobDetails";
@@ -12,6 +13,42 @@ function App() {
 	const [selectedCabinet, setSelectedCabinet] = useState(null);
 	const [viewLayout, setViewLayout] = useState(null);
 	const [currentStep, setCurrentStep] = useState(0);
+
+	// Silent session restore: on mount try refresh then fetch /users/me
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			try {
+				// Attempt refresh to get new access token (if refresh cookie present)
+				const resp = await fetch("/api/auth/refresh", {
+					method: "POST",
+					headers: { "X-CSRF-Token": getCsrfToken() },
+				});
+				if (resp.ok) {
+					const data = await resp.json();
+					window.__access_token = data.access_token;
+					const meRes = await authFetch("/api/users/me");
+					if (meRes.ok) {
+						const me = await meRes.json();
+						if (!cancelled) {
+							setUser(me);
+							setCurrentStep(1);
+						}
+					}
+				}
+			} catch (e) {
+				// ignore
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	function getCsrfToken() {
+		const m = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
+		return m ? decodeURIComponent(m[1]) : "";
+	}
 
 	const steps = [
 		{ key: "login", label: "Login" },
@@ -79,7 +116,18 @@ function App() {
 
 	return (
 		<div className="min-h-screen bg-gray-100 p-4">
-			<Navbar steps={steps} currentStep={currentStep} onNavigate={handleNavigate} />
+			<Navbar
+				steps={steps}
+				currentStep={currentStep}
+				onNavigate={handleNavigate}
+				onLogout={() => {
+					setUser(null);
+					setJob(null);
+					setSelectedCabinet(null);
+					setViewLayout(null);
+					setCurrentStep(0);
+				}}
+			/>
 			{content}
 		</div>
 	);

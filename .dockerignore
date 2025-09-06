@@ -1,0 +1,12 @@
+# ignore repo parts not needed for building server image
+frontend/
+build/
+node_modules/
+.env
+.git
+__pycache__/
+*.pyc
+*.sqlite3
+venv/
+env/
+.DS_Store

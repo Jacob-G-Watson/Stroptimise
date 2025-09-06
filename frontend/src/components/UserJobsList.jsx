@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { authFetch } from "../authFetch";
 
 function UserJobsList({ user, onSelectJob }) {
 	const [jobs, setJobs] = useState([]);
@@ -10,7 +11,7 @@ function UserJobsList({ user, onSelectJob }) {
 	useEffect(() => {
 		if (!user?.id) return;
 		setLoading(true);
-		fetch(`/api/jobs?user_id=${user.id}`)
+		authFetch(`/api/jobs?user_id=${user.id}`)
 			.then((res) => {
 				if (!res.ok) throw new Error("Failed to fetch jobs");
 				return res.json();
@@ -30,7 +31,7 @@ function UserJobsList({ user, onSelectJob }) {
 		setAdding(true);
 		setError("");
 		try {
-			const res = await fetch("/api/jobs", {
+			const res = await authFetch("/api/jobs", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: jobName, user_id: user.id }),

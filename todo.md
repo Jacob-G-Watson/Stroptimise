@@ -2,14 +2,18 @@
 
 ## UI
 
-- Delete option for pieces
-- Delete option for cabinets
 - Sheet spacing should be nicer, keep it on screen
+- Easy way to put in a poly
+  - SVG click/drag editor (no deps): user clicks to add vertices on an SVG canvas, drag vertices to adjust, buttons for undo/clear/finish. Simple and no extra libs.
+  - User enters in json but it is immediately shown on screen what that does
+  - Show measurements on screen
+  - fix up how it hangs out the side
+- show measurements on layout preview
+- Zoom on webviewer
 
 ## Function
 
-- Export data as a pdf
-- Export data as a csv and json
+- Make it at least somewhat secure
 - Load data in from a csv or json modified export
 
 ## Optimiser
@@ -35,3 +39,24 @@ could do a delete instead
 
 - app.py should be sorted better into different functions. Could look at different files
 - Testing framework
+
+
+
+
+Should run [Any time a cabinet is modified (pieces added, edited or removed) or a cabinet is added to a job]. It iterate through all packing modes starting with the quickest and saving to the db a placement group ever time it finishes a run.
+2.
+
+I want the proccess to be async the user should not wait for optimiser to run when they add a peice
+
+as soon as a new edit add or delete is made stop the current optmisation and make a new one
+
+when opening the joblayoutviewer I want to display the most recently calculated placement group to the user
+
+add a debug print into the server so that ever time it starts and ends a run it is put in the terminal
+
+Do not modify my db schema
+
+Do not ask me to interact
+
+
+

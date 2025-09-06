@@ -1,11 +1,11 @@
 -- User
 INSERT INTO
-    user (id, name, password)
+    user (id, name, password_hash)
 VALUES
     (
         '11111111-1111-1111-1111-111111111111',
         'demo',
-        'demo'
+        '$argon2id$v=19$m=65536,t=3,p=4$XOXrlFXbhKcJGAlkXvlHdw$pEeHFWfUCd8QRb/kkD48R77IBcyrDk7grvjqipHZeKw'
     );
 
 -- Job
@@ -303,11 +303,9 @@ VALUES
         290
     );
 
--- Example polygon for one piece in Cabinet B
-INSERT INTO
-    piecepolygon (piece_id, points_json)
-VALUES
-    (
-        'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
-        '[ [0,0], [200,0], [200,50], [50,50], [50,200], [0,200] ]'
-    );
+-- Example polygon for one piece in Cabinet B: update the piece row's points_json
+UPDATE piece
+SET
+    points_json = '[ [0,0], [200,0], [200,50], [50,50], [50,200], [0,200] ]'
+WHERE
+    id = 'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1';

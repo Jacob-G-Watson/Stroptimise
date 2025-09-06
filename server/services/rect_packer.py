@@ -1,0 +1,70 @@
+from typing import List, Dict, Any
+from rectpack import newPacker, GuillotineBafSas
+
+
+def pack_rectangles(
+    pieces: List[Dict[str, Any]],
+    sheet_width: int,
+    sheet_height: int,
+    allow_rotation: bool,
+    kerf: int,
+) -> Dict[str, Any]:
+    """Pack rectangular pieces using rectpack and return the sheet placements.
+
+    This is a near-1:1 extraction of the previous _pack_rectangles function.
+    """
+    # Map id -> original dims/name for post-processing
+    id_map = {
+        p["id"]: {
+            "w": int(p["width"]),
+            "h": int(p["height"]),
+            "name": p.get("name"),
+        }
+        for p in pieces
+    }
+
+    packer = newPacker(rotation=allow_rotation, pack_algo=GuillotineBafSas)
+
+    # Add rectangles; apply kerf as padding around each piece (simple approximation)
+    for p in pieces:
+        w = int(p["width"]) + kerf
+        h = int(p["height"]) + kerf
+        rid = p["id"]
+        packer.add_rect(w, h, rid=rid)
+
+    # Add many bins of requested size; rectpack doesn't support infinite bins, use a safe upper bound
+    packer.add_bin(int(sheet_width), int(sheet_height), count=100)
+
+    packer.pack()
+
+    # Gather placements grouped by bin index
+    sheets_map: Dict[int, Dict[str, Any]] = {}
+    for bin_index, x, y, w, h, rid in packer.rect_list():
+        if bin_index not in sheets_map:
+            sheets_map[bin_index] = {
+                "index": bin_index,
+                "width": int(sheet_width),
+                "height": int(sheet_height),
+                "rects": [],
+                "polygons": [],
+            }
+        meta = id_map.get(rid, {})
+        orig_w = meta.get("w", w)
+        orig_h = meta.get("h", h)
+        adj_w = max(1, int(w) - kerf)
+        adj_h = max(1, int(h) - kerf)
+        angle = 90 if allow_rotation and (adj_w == orig_h and adj_h == orig_w) else 0
+        sheets_map[bin_index]["rects"].append(
+            {
+                "piece_id": rid,
+                "name": meta.get("name") or rid,
+                "x": int(x),
+                "y": int(y),
+                "w": int(adj_w),
+                "h": int(adj_h),
+                "angle": angle,
+            }
+        )
+
+    sheets = [sheets_map[i] for i in sorted(sheets_map.keys())]
+    return {"sheets": sheets}

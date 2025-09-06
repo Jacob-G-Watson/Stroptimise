@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import SelectionContext from "../contexts/SelectionContext";
-import { authFetch } from "../authFetch";
+import { authFetch } from "../services/authFetch";
 import CabinetDetails from "./CabinetDetails";
 
 function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {

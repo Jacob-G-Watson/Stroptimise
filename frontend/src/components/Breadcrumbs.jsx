@@ -17,8 +17,6 @@ export default function Breadcrumbs() {
 	else if (parts[2] === "cabinet" && parts[3])
 		crumbs.push({ label: cabinet?.name || parts[3], to: `/jobs/${jobId}/cabinet/${parts[3]}` });
 
-	if (crumbs.length <= 1) return null; // only show when there's something beyond job root
-
 	return (
 		<ol className="flex items-center gap-2 text-gray-600" aria-label="Breadcrumb">
 			{crumbs.map((c, i) => (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import UserLogin from "./components/UserLogin";
 import UserJobsList from "./components/UserJobsList";
@@ -8,7 +8,7 @@ import JobLayoutViewer from "./components/JobLayoutViewer";
 import Navbar from "./components/Navbar";
 import SelectionContext from "./contexts/SelectionContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { useSession } from "./hooks/useSession";
+import { useSession } from "./services/useSession";
 
 function App() {
 	const { user, setUser } = useSession();

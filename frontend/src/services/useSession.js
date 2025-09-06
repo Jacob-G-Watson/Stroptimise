@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authFetch } from "../authFetch";
+import { authFetch } from "./authFetch";
 
 // Handles silent refresh + user fetch once. Returns { user, setUser, restoring }
 export function useSession() {

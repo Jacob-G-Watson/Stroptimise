@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { authFetch } from "../authFetch";
+import { authFetch } from "../services/authFetch";
 
 function UserJobsList({ user, onSelectJob }) {
 	const [jobs, setJobs] = useState([]);

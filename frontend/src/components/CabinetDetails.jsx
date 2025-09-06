@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import SelectionContext from "../contexts/SelectionContext";
-import { authFetch } from "../authFetch";
+import { authFetch } from "../services/authFetch";
 
 function CabinetDetails({ cabinet: cabinetProp }) {
 	const params = useParams();

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { authFetch } from "../authFetch";
+import { authFetch } from "../services/authFetch";
+import { PrimaryButton } from "../utils/ThemeUtils";
 
 function UserJobsList({ user, onSelectJob }) {
 	const [jobs, setJobs] = useState([]);
@@ -10,20 +11,32 @@ function UserJobsList({ user, onSelectJob }) {
 
 	useEffect(() => {
 		if (!user?.id) return;
+		let cancelled = false;
+		const ac = new AbortController();
 		setLoading(true);
-		authFetch(`/api/jobs?user_id=${user.id}`)
+		authFetch(`/api/jobs?user_id=${user.id}`, { signal: ac.signal })
 			.then((res) => {
 				if (!res.ok) throw new Error("Failed to fetch jobs");
 				return res.json();
 			})
 			.then((data) => {
-				setJobs(data);
-				setLoading(false);
+				if (!cancelled) {
+					setJobs(data);
+					setLoading(false);
+				}
 			})
 			.catch((err) => {
-				setError(err.message);
-				setLoading(false);
+				if (err.name === "AbortError") return;
+				if (!cancelled) {
+					setError(err.message);
+					setLoading(false);
+				}
 			});
+
+		return () => {
+			cancelled = true;
+			ac.abort();
+		};
 	}, [user]);
 
 	const handleAddJob = async (e) => {
@@ -50,7 +63,7 @@ function UserJobsList({ user, onSelectJob }) {
 	if (!user?.id) return null;
 
 	return (
-		<div className="p-4 bg-white rounded shadow max-w-md mx-auto mt-6">
+		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
 			<h3 className="text-lg font-bold mb-2">Your Jobs</h3>
 			<form onSubmit={handleAddJob} className="mb-4 flex gap-2 items-center">
 				<input
@@ -61,19 +74,21 @@ function UserJobsList({ user, onSelectJob }) {
 					className="border px-2 py-1 rounded"
 					required
 				/>
-				<button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded" disabled={adding}>
+				<PrimaryButton type="submit" disabled={adding}>
 					{adding ? "Adding..." : "Add Job"}
-				</button>
+				</PrimaryButton>
 			</form>
 			{loading && <div>Loading jobs...</div>}
 			{error && <div className="text-red-500">{error}</div>}
 			<ul>
 				{jobs.map((job) => (
-					<li key={job.id} className="mb-2 flex justify-between items-center">
-						<span>{job.name || job.id}</span>
-						<button className="px-2 py-1 bg-blue-500 text-white rounded" onClick={() => onSelectJob(job)}>
-							Select
-						</button>
+					<li key={job.id} className="mb-2">
+						<div className="flex items-center justify-between gap-4">
+							<span className="break-all" title={job.name || job.id}>
+								{job.name || job.id}
+							</span>
+							<PrimaryButton onClick={() => onSelectJob(job)}>Select</PrimaryButton>
+						</div>
 					</li>
 				))}
 			</ul>

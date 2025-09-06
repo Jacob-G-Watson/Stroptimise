@@ -1,134 +1,75 @@
-import React, { useState, useEffect } from "react";
-import { authFetch } from "./authFetch";
+import { useState } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import UserLogin from "./components/UserLogin";
 import UserJobsList from "./components/UserJobsList";
 import JobDetails from "./components/JobDetails";
 import CabinetDetails from "./components/CabinetDetails";
 import JobLayoutViewer from "./components/JobLayoutViewer";
 import Navbar from "./components/Navbar";
+import SelectionContext from "./utils/SelectionContext";
+import ProtectedRoute from "./utils/ProtectedRoute";
+import { useSession } from "./services/useSession";
 
 function App() {
-	const [user, setUser] = useState(null);
+	const { user, setUser } = useSession();
 	const [job, setJob] = useState(null);
-	const [selectedCabinet, setSelectedCabinet] = useState(null);
-	const [viewLayout, setViewLayout] = useState(null);
-	const [currentStep, setCurrentStep] = useState(0);
+	const [cabinet, setCabinet] = useState(null);
+	const navigate = useNavigate();
 
-	// Silent session restore: on mount try refresh then fetch /users/me
-	useEffect(() => {
-		let cancelled = false;
-		(async () => {
-			try {
-				// Attempt refresh to get new access token (if refresh cookie present)
-				const resp = await fetch("/api/auth/refresh", {
-					method: "POST",
-					headers: { "X-CSRF-Token": getCsrfToken() },
-				});
-				if (resp.ok) {
-					const data = await resp.json();
-					window.__access_token = data.access_token;
-					const meRes = await authFetch("/api/users/me");
-					if (meRes.ok) {
-						const me = await meRes.json();
-						if (!cancelled) {
-							setUser(me);
-							setCurrentStep(1);
-						}
-					}
-				}
-			} catch (e) {
-				// ignore
-			}
-		})();
-		return () => {
-			cancelled = true;
-		};
-	}, []);
-
-	function getCsrfToken() {
-		const m = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
-		return m ? decodeURIComponent(m[1]) : "";
-	}
-
-	const steps = [
-		{ key: "login", label: "Login" },
-		{ key: "jobs", label: "Jobs" },
-		{ key: "details", label: "Job Details" },
-		{ key: "cabinet", label: "Cabinet" },
-	];
-
-	const handleNavigate = (stepIdx) => {
-		setCurrentStep(stepIdx);
-		if (stepIdx === 0) {
-			setUser(null);
-			setJob(null);
-			setSelectedCabinet(null);
-			setViewLayout(false);
-		} else if (stepIdx === 1) {
-			setJob(null);
-			setViewLayout(false);
-			setSelectedCabinet(null);
-		} else if (stepIdx === 2) {
-			setSelectedCabinet(null);
-			setViewLayout(false);
-		}
+	const handleLogout = () => {
+		setUser(null);
+		setJob(null);
+		window.__access_token = undefined;
+		navigate("/", { replace: true });
 	};
 
-	let content;
-	if (!user) {
-		content = (
-			<UserLogin
-				onLogin={(u) => {
-					setUser(u);
-					setCurrentStep(1);
-				}}
-			/>
-		);
-	} else if (!job) {
-		content = (
-			<UserJobsList
-				user={user}
-				onSelectJob={(selectedJob) => {
-					setJob(selectedJob);
-					setCurrentStep(2);
-				}}
-			/>
-		);
-	} else if (!selectedCabinet && !viewLayout) {
-		content = (
-			<JobDetails
-				job={job}
-				onEditCabinet={(cabinet) => {
-					setSelectedCabinet(cabinet);
-					setCurrentStep(3);
-				}}
-				handleViewLayout={(isViewSelected) => {
-					setViewLayout(isViewSelected);
-					setCurrentStep(3);
-				}}
-			/>
-		);
-	} else if (viewLayout) {
-		content = <JobLayoutViewer job={job} />;
-	} else {
-		content = <CabinetDetails cabinet={selectedCabinet} />;
-	}
-
 	return (
-		<div className="min-h-screen bg-gray-100 p-4">
-			<Navbar
-				steps={steps}
-				currentStep={currentStep}
-				onNavigate={handleNavigate}
-				onLogout={() => {
-					setUser(null);
-					setJob(null);
-					setSelectedCabinet(null);
-					setViewLayout(null);
-					setCurrentStep(0);
-				}}
-			/>
-			{content}
+		<div className=" bg-stropt-beige p-4">
+			<SelectionContext.Provider value={{ job, setJob, cabinet, setCabinet }}>
+				<Navbar user={user} onLogout={handleLogout} />
+				<Routes>
+					<Route
+						path="/"
+						element={
+							<UserLogin
+								onLogin={(u) => {
+									setUser(u);
+									navigate("/jobs");
+								}}
+							/>
+						}
+					/>
+					<Route element={<ProtectedRoute user={user} />}>
+						<Route
+							path="/jobs"
+							element={
+								<UserJobsList
+									user={user}
+									onSelectJob={(selectedJob) => {
+										setJob(selectedJob);
+										navigate(`/jobs/${selectedJob.id}`);
+									}}
+								/>
+							}
+						/>
+						<Route
+							path="/jobs/:jobId"
+							element={
+								<JobDetails
+									job={job}
+									onEditCabinet={(cab) => {
+										setCabinet(cab);
+										navigate(`/jobs/${job?.id || cab.job_id}/cabinet/${cab.id}`);
+									}}
+									handleViewLayout={() => navigate(`/jobs/${job?.id}/layout`)}
+								/>
+							}
+						/>
+						<Route path="/jobs/:jobId/layout" element={<JobLayoutViewer job={job} />} />
+						<Route path="/jobs/:jobId/cabinet/:cabinetId" element={<CabinetDetails cabinet={cabinet} />} />
+					</Route>
+				</Routes>
+			</SelectionContext.Provider>
 		</div>
 	);
 }

@@ -1,4 +1,11 @@
-function Navbar({ steps, currentStep, onNavigate, onLogout }) {
+import { NavLink, useNavigate } from "react-router-dom";
+import React from "react";
+import Breadcrumbs from "../utils/Breadcrumbs";
+import { DangerButton } from "../utils/ThemeUtils";
+
+function Navbar({ user, onLogout }) {
+	const navigate = useNavigate();
+
 	const handleLogout = async () => {
 		try {
 			await fetch("/api/auth/logout", { method: "POST" });
@@ -7,33 +14,46 @@ function Navbar({ steps, currentStep, onNavigate, onLogout }) {
 		}
 		window.__access_token = undefined;
 		onLogout && onLogout();
+		navigate("/");
 	};
+
 	return (
-		<nav className="bg-gray-200 px-4 py-2 flex items-center text-sm rounded mb-4">
+		<nav className=" bg-white p-4 flex text-sm rounded mb-4 stropt-border" role="navigation" aria-label="Main">
 			<div className="flex items-center gap-2">
-				<div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center text-white font-bold text-lg select-none">
+				<div className="w-8 h-8 bg-stropt-green rounded flex items-center justify-center text-stropt-beige font-bold text-lg select-none stropt-logo-border">
 					O
 				</div>
-				<span className="font-bold text-gray-700">Stroptimise</span>
+				<span className="font-bold text-stropt-brown">Stroptimise</span>
 			</div>
-			<div className="flex items-center gap-2 ml-6">
-				{steps.slice(0, currentStep + 1).map((step, idx) => (
-					<span key={step.key} className="flex items-center">
-						<button
-							className={`font-semibold ${idx === currentStep ? "text-blue-600" : "text-gray-700"}`}
-							disabled={idx === currentStep}
-							onClick={() => onNavigate(idx)}
-						>
-							{step.label}
-						</button>
-						{idx < currentStep && <span className="mx-2 text-gray-400">/</span>}
-					</span>
-				))}
+
+			<div className="flex items-center gap-4 ml-6">
+				{!user ? (
+					<NavLink
+						to="/"
+						className={({ isActive }) =>
+							`font-semibold ${isActive ? "text-stropt-green" : "text-stropt-brown"}`
+						}
+					>
+						Login
+					</NavLink>
+				) : (
+					<NavLink
+						to="/jobs"
+						className={({ isActive }) =>
+							`font-semibold ${isActive ? "text-stropt-green" : "text-stropt-brown"}`
+						}
+					>
+						Jobs
+					</NavLink>
+				)}
+				{user && <Breadcrumbs />}
 			</div>
 			<div className="ml-auto">
-				<button onClick={handleLogout} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
-					Logout
-				</button>
+				{user ? (
+					<DangerButton onClick={handleLogout} className="px-3 py-1 stropt-logout-border">
+						Logout
+					</DangerButton>
+				) : null}
 			</div>
 		</nav>
 	);

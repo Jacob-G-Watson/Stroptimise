@@ -1,26 +1,68 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import SelectionContext from "../contexts/SelectionContext";
 import { authFetch } from "../authFetch";
 import CabinetDetails from "./CabinetDetails";
 
-function JobDetails({ job, onEditCabinet, handleViewLayout }) {
+function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
+	const params = useParams();
+	const { job: contextJob, setJob: setContextJob } = React.useContext(SelectionContext);
+	const jobIdFromParams = params.jobId;
+	const [job, setJob] = useState(jobProp || contextJob || null);
 	const [cabinets, setCabinets] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 
 	useEffect(() => {
-		if (!job?.id) return;
+		let cancelled = false;
+		const ac = new AbortController();
+
+		(async () => {
+			try {
+				if (!job && jobIdFromParams) {
+					const res = await authFetch(`/api/jobs/${jobIdFromParams}`, { signal: ac.signal });
+					if (res.ok) {
+						const j = await res.json();
+						if (!cancelled) {
+							setJob(j);
+							if (setContextJob) setContextJob(j);
+						}
+					}
+				}
+			} catch (e) {
+				if (e.name === "AbortError") return;
+				// ignore other errors
+			}
+		})();
+
+		if (!job?.id)
+			return () => {
+				cancelled = true;
+				ac.abort();
+			};
+
 		setLoading(true);
-		authFetch(`/api/jobs/${job.id}/cabinets`)
+		authFetch(`/api/jobs/${job.id}/cabinets`, { signal: ac.signal })
 			.then((res) => res.json())
 			.then((data) => {
-				setCabinets(Array.isArray(data) ? data : []);
-				setLoading(false);
+				if (!cancelled) {
+					setCabinets(Array.isArray(data) ? data : []);
+					setLoading(false);
+				}
 			})
 			.catch((err) => {
-				setError("Failed to fetch cabinets");
-				setLoading(false);
+				if (err.name === "AbortError") return;
+				if (!cancelled) {
+					setError("Failed to fetch cabinets");
+					setLoading(false);
+				}
 			});
-	}, [job]);
+
+		return () => {
+			cancelled = true;
+			ac.abort();
+		};
+	}, [job, jobIdFromParams]);
 
 	if (!job) return null;
 

@@ -10,20 +10,32 @@ function UserJobsList({ user, onSelectJob }) {
 
 	useEffect(() => {
 		if (!user?.id) return;
+		let cancelled = false;
+		const ac = new AbortController();
 		setLoading(true);
-		authFetch(`/api/jobs?user_id=${user.id}`)
+		authFetch(`/api/jobs?user_id=${user.id}`, { signal: ac.signal })
 			.then((res) => {
 				if (!res.ok) throw new Error("Failed to fetch jobs");
 				return res.json();
 			})
 			.then((data) => {
-				setJobs(data);
-				setLoading(false);
+				if (!cancelled) {
+					setJobs(data);
+					setLoading(false);
+				}
 			})
 			.catch((err) => {
-				setError(err.message);
-				setLoading(false);
+				if (err.name === "AbortError") return;
+				if (!cancelled) {
+					setError(err.message);
+					setLoading(false);
+				}
 			});
+
+		return () => {
+			cancelled = true;
+			ac.abort();
+		};
 	}, [user]);
 
 	const handleAddJob = async (e) => {

@@ -1,7 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams, useLocation } from "react-router-dom";
+import SelectionContext from "../contexts/SelectionContext";
 import { authFetch } from "../authFetch";
 
-function CabinetDetails({ cabinet }) {
+function CabinetDetails({ cabinet: cabinetProp }) {
+	const params = useParams();
+	const location = useLocation();
+	const { cabinet: contextCabinet } = React.useContext(SelectionContext);
+	const cabinetIdFromParams = params.cabinetId;
+	const cabinetFromState = location?.state?.cabinet;
+	const [cabinet, setCabinet] = useState(cabinetProp || cabinetFromState || contextCabinet || null);
 	const [pieces, setPieces] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -13,6 +21,21 @@ function CabinetDetails({ cabinet }) {
 	const [deletingIds, setDeletingIds] = useState(new Set());
 
 	React.useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			try {
+				if (!cabinet && cabinetIdFromParams) {
+					const r = await authFetch(`/api/cabinets/${cabinetIdFromParams}`);
+					if (r.ok) {
+						const c = await r.json();
+						if (!cancelled) setCabinet(c);
+					}
+				}
+			} catch (e) {
+				/* ignore */
+			}
+		})();
+
 		if (!cabinet?.id) return;
 		setLoading(true);
 		authFetch(`/api/cabinets/${cabinet.id}/pieces`)
@@ -25,7 +48,7 @@ function CabinetDetails({ cabinet }) {
 				setError("Failed to fetch pieces");
 				setLoading(false);
 			});
-	}, [cabinet]);
+	}, [cabinet, cabinetIdFromParams]);
 
 	const handleAddPiece = async (e) => {
 		e.preventDefault();
@@ -76,7 +99,12 @@ function CabinetDetails({ cabinet }) {
 		}
 	};
 
-	if (!cabinet) return null;
+	if (!cabinet)
+		return (
+			<div className="p-4 bg-white rounded shadow w-full max-w-md md:max-w-3xl mx-auto mt-6">
+				<div>Loading cabinet...</div>
+			</div>
+		);
 
 	return (
 		<div className="p-4 bg-white rounded shadow w-full max-w-md md:max-w-3xl mx-auto mt-6">

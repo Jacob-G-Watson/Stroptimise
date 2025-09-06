@@ -17,3 +17,4 @@ frontend/build/
 .DS_Store
 Thumbs.db
 .env
+server/auth.log

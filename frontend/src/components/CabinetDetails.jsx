@@ -18,8 +18,6 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 	const [pieceWidth, setPieceWidth] = useState("");
 	const [pieceHeight, setPieceHeight] = useState("");
 	const [polygonText, setPolygonText] = useState(""); // JSON [[x,y],...]
-	// whether the form has any user input (used to choose initial width)
-	const formHasValue = pieceName || pieceWidth || pieceHeight || polygonText;
 	const [adding, setAdding] = useState(false);
 	const [deletingIds, setDeletingIds] = useState(new Set());
 

@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from sqlmodel import Session, select
 
+from datetime import datetime, timezone
+import logging
+from ipaddress import ip_address
 from db import engine
 from models import User
 from .auth import (
@@ -12,9 +15,11 @@ from .auth import (
     generate_csrf_token,
     check_rate_limit,
     get_current_user,
+    decode_token,
+    persist_refresh_token,
+    password_hasher,
 )
-import logging
-from ipaddress import ip_address
+
 
 logger = logging.getLogger("auth")
 if not logger.handlers:
@@ -52,8 +57,21 @@ def login(data: dict, request: Request, response: Response):
                 pass
             logger.info(f"login_fail ip={client_ip} user={name}")
             raise HTTPException(status_code=401, detail="Invalid username or password")
+
+        # Optional hash upgrade (argon2 parameter changes)
+        try:
+            if password_hasher.check_needs_rehash(user.password_hash):
+                user.password_hash = hash_password(password)
+                s.add(user)
+                s.commit()
+        except Exception:
+            pass
+
         access = create_access_token(user)
         refresh = create_refresh_token(user)
+        payload = decode_token(refresh)
+        token_expiry_time = datetime.fromtimestamp(payload.get("exp"), tz=timezone.utc)
+        persist_refresh_token(payload.get("jti"), user, token_expiry_time)
         csrf = generate_csrf_token()
         set_refresh_and_csrf_cookies(response, refresh, csrf)
         logger.info(f"login_success ip={client_ip} user_id={user.id} user={name}")
@@ -99,9 +117,11 @@ def create_user(data: dict, request: Request, response: Response):
         s.commit()
         s.refresh(user)
 
-        # Issue tokens and set cookies as in login
         access = create_access_token(user)
         refresh = create_refresh_token(user)
+        payload = decode_token(refresh)
+        token_expiry_time = datetime.fromtimestamp(payload.get("exp"), tz=timezone.utc)
+        persist_refresh_token(payload.get("jti"), user, token_expiry_time)
         csrf = generate_csrf_token()
         set_refresh_and_csrf_cookies(response, refresh, csrf)
         logger.info(f"signup_success ip={client_ip} user_id={user.id} user={name}")

@@ -45,12 +45,10 @@ function UserLogin({ onLogin }) {
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ name, password }),
 				});
-				if (res.ok || res.status === 201) {
-					// Auto-login after successful signup
-					const loggedIn = await doLogin(name, password);
-					if (!loggedIn) {
-						setError("Signup succeeded but automatic login failed. Please login manually.");
-					}
+				if (res.ok) {
+					const data = await res.json();
+					window.__access_token = data.access_token;
+					onLogin(data.user);
 				} else if (res.status === 404) {
 					setError("Signup is not available on this server");
 				} else {

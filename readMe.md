@@ -60,27 +60,41 @@ sequenceDiagram
         FE->>FE: Stay on login form
     end
 
-    Note over U,FE: User submits credentials
+    Note over U,FE: User submits credentials (login)
     U->>FE: Enter username + password
     FE->>API: POST /api/users/login {name, password}
     API->>API: Rate limit check (IP+username)
     API->>DB: SELECT user WHERE name
     DB-->>API: User / None
-    API->>API: Argon2 verify password_hash
+    API->>API: Argon2 verify password_hash (rehash if params changed)
     alt Valid credentials
-        API->>API: Create access & refresh JWT + CSRF token
-        API-->>FE: 200 {access_token, user:{id,name}} + Set-Cookie(refresh, csrf)
-        FE->>FE: Store access token (memory) & user
+        API->>API: Create access & refresh JWT (iss,aud) + CSRF token
+        API-->>FE: 200 {access_token, user:{id,name}, expires_in} + Set-Cookie(refresh, csrf)
+        FE->>FE: Store access token (memory) & schedule proactive refresh
         FE->>API: Authenticated requests (Authorization: Bearer <access>)
     else Invalid credentials
         API-->>FE: 401 {error}
         FE->>FE: Show error message
     end
 
+    Note over U,FE: Signup
+    U->>FE: Enter new username + password
+    FE->>API: POST /api/users {name,password}
+    API->>API: Create user + tokens (no second login request)
+    API-->>FE: 201 {access_token, user, expires_in} + Set-Cookie(refresh, csrf)
+    FE->>FE: Store token & schedule proactive refresh
+
     Note over FE,API: Access token expires (~15m)
     FE->>API: POST /api/auth/refresh (cookies + X-CSRF-Token header)
-    API->>API: Verify refresh token & CSRF
-    API-->>FE: New access_token (rotating optional)
+    API->>API: Verify refresh token & CSRF rotate & revoke old
+    alt Reuse detected (revoked token presented)
+        API->>API: Revoke all user sessions log security event
+        API-->>FE: 401 {error: reuse detected}
+        FE->>FE: Force logout sequence
+    else Normal rotation
+        API-->>FE: 200 {access_token, expires_in} + Set-Cookie(new refresh, csrf)
+        FE->>FE: Update token & reschedule proactive refresh
+    end
 
     Note over U,FE: Logout
     U->>FE: Click Logout

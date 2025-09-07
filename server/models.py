@@ -12,6 +12,7 @@ class User(SQLModel, table=True):
     id: str = Field(default_factory=guid, primary_key=True)
     name: str
     password_hash: str | None = None
+    refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")
     jobs: List["Job"] = Relationship(back_populates="user")
     # todo kerf should be per user
 
@@ -91,3 +92,15 @@ class PlacementGroup(SQLModel, table=True):
     job_id: Optional[str] = Field(default=None, foreign_key="job.id")
     job: Optional[Job] = Relationship(back_populates="placement_groups")
     placements: List[Placement] = Relationship(back_populates="placement_group")
+
+
+class RefreshToken(SQLModel, table=True):
+    __tablename__ = "refresh_token"
+    id: str = Field(default_factory=guid, primary_key=True)
+    jti: str
+    user_id: str = Field(foreign_key="user.id")
+    issued_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+    revoked: bool = False
+    device_info: str | None = None
+    user: Optional[User] = Relationship(back_populates="refresh_tokens")

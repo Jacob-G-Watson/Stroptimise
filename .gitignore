@@ -20,3 +20,4 @@ Thumbs.db
 .env.local
 .env.unraid
 server/auth.log
+.env

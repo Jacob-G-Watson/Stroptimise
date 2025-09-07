@@ -4,6 +4,10 @@ This file is intentionally small — the original large `app.py` was split into
 several modules under `server/api/` for readability and maintainability.
 """
 
+from pathlib import Path
+
+from dotenv import load_dotenv
+
 from fastapi import FastAPI
 from sqlmodel import SQLModel
 from sqlalchemy import text
@@ -14,6 +18,12 @@ from api import cabinets, jobs, pieces, users, layout
 from api.auth import router as auth_router
 
 app = FastAPI()
+
+# Load .env from repository root (one level above server/). This allows a project-root
+# .env file to provide JWT_SECRET and other env vars used by the server.
+root_env = Path(__file__).resolve().parents[1] / ".env"
+if root_env.exists():
+    load_dotenv(root_env)
 
 # Register API routers; each router defines routes like "/jobs" or
 # "/cabinets" and we mount them under the common "/api" prefix.

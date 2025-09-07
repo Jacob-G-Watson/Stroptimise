@@ -38,7 +38,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 	const [sheetWidth, setSheetWidth] = useState(2400); // mm
 	const [sheetHeight, setSheetHeight] = useState(1200); // mm
 	const [allowRotation, setAllowRotation] = useState(true);
-	const [kerf, setKerf] = useState(0);
+	const [kerf, setKerf] = useState(3); // default kerf mm
 	const [packingMode, setPackingMode] = useState("heuristic");
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					sheet_width: Number(sheetWidth),
 					sheet_height: Number(sheetHeight),
 					allow_rotation: allowRotation,
-					kerf_mm: Number(kerf) || 0,
+					kerf_mm: Number(kerf) || 3,
 					packing_mode: packingMode,
 				}),
 			});
@@ -87,7 +87,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					sheet_width: Number(sheetWidth),
 					sheet_height: Number(sheetHeight),
 					allow_rotation: allowRotation,
-					kerf_mm: Number(kerf) || 0,
+					kerf_mm: Number(kerf) || 3,
 					packing_mode: packingMode,
 				}),
 			});

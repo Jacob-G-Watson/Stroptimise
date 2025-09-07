@@ -187,10 +187,15 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 						value={packingMode}
 						onChange={(e) => setPackingMode(e.target.value)}
 						className="border px-2 py-1 rounded w-32"
+						aria-label="Packing mode (only heuristic available)"
 					>
-						<option value="simple">Simple</option>
+						<option value="simple" disabled title="Simple packing not available">
+							Simple
+						</option>
 						<option value="heuristic">Heuristic</option>
-						<option value="exhaustive">Exhaustive</option>
+						<option value="exhaustive" disabled title="Exhaustive packing not available">
+							Exhaustive
+						</option>
 					</select>
 				</div>
 				<label className="inline-flex items-center gap-2">

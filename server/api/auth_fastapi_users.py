@@ -25,9 +25,9 @@ import secrets
 TOKEN_ENCRYPTION_KEY = os.getenv("JWT_SECRET")
 if not TOKEN_ENCRYPTION_KEY:
     logging.getLogger("auth").error(
-        "JWT_SECRET environment variable is missing; generating ephemeral secret (all tokens will invalidate on restart)."
+        "JWT_SECRET environment variable is missing; application will not start. Please set JWT_SECRET to a secure value."
     )
-    TOKEN_ENCRYPTION_KEY = secrets.token_urlsafe(64)
+    raise RuntimeError("JWT_SECRET environment variable is required for authentication.")
 
 # Database adapter ---------------------------------------------------------
 

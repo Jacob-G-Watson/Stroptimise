@@ -27,7 +27,9 @@ if not TOKEN_ENCRYPTION_KEY:
     logging.getLogger("auth").error(
         "JWT_SECRET environment variable is missing; application will not start. Please set JWT_SECRET to a secure value."
     )
-    raise RuntimeError("JWT_SECRET environment variable is required for authentication.")
+    raise RuntimeError(
+        "JWT_SECRET environment variable is required for authentication."
+    )
 
 # Database adapter ---------------------------------------------------------
 
@@ -134,13 +136,12 @@ class UserManager(BaseUserManager[User, str]):
     async def create(
         self, user_create: UserCreate, safe: bool = False, request=None
     ) -> User:
-        # Enforce unique email (custom check using sync Session because our engine is sync)
-        with Session(engine) as session:  # type: ignore
-            existing = session.exec(
-                select(User).where(User.email == user_create.email)
-            ).first()
-            if existing is not None:
-                raise fau_exceptions.UserAlreadyExists()
+        # Enforce unique email using the existing user DB adapter to avoid
+        # creating an extra Session/connection. The adapter implements
+        # `get_by_email` and uses the same underlying session.
+        existing = await self.user_db.get_by_email(user_create.email)  # type: ignore[attr-defined]
+        if existing is not None:
+            raise fau_exceptions.UserAlreadyExists()
         return await super().create(user_create, safe, request)
 
 
@@ -180,15 +181,17 @@ me_router = APIRouter()
 
 
 def _set_refresh_cookie(response: Response, token: str):
-    same = COOKIE_SAMESITE if COOKIE_SAMESITE in {"lax", "strict", "none"} else "lax"
-    if same == "none" and not SECURE_COOKIES:
-        same = "lax"
+    validated_samesite = (
+        COOKIE_SAMESITE if COOKIE_SAMESITE in {"lax", "strict", "none"} else "lax"
+    )
+    if validated_samesite == "none" and not SECURE_COOKIES:
+        validated_samesite = "lax"
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=token,
         httponly=True,
         secure=SECURE_COOKIES,
-        samesite=same,
+        samesite=validated_samesite,
         max_age=REFRESH_TTL_DAYS * 86400,
         path="/",
     )

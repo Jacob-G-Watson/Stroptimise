@@ -3,10 +3,10 @@ services:
     build: .
     container_name: stroptimise_server
     restart: unless-stopped
-    # Load environment variables from a configurable env file (defaults to ./ .env).
     env_file:
-      - ${STROPTIMISE_ENV_FILE:-.env}
+      # Load environment variables from a configurable env file (defaults to ./ .env).
 
+      - ${STROPTIMISE_ENV_FILE:-.env}
     ports:
       - "9050:9050"
     volumes:

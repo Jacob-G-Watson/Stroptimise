@@ -20,9 +20,9 @@ from models import (
 from services.optimiser import pack
 from services.export import sheets_to_pdf_bytes
 
-from .auth import get_current_user
+from .auth_fastapi_users import current_active_user
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(current_active_user)])
 
 
 def _sanitize_filename(s: str) -> str:

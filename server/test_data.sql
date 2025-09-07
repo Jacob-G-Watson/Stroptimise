@@ -1,11 +1,24 @@
--- User
+-- User (updated for new fastapi-users schema)
+-- Password is "password" (argon2id default params)
 INSERT INTO
-    user (id, name, password_hash)
+    user (
+        id,
+        name,
+        email,
+        hashed_password,
+        is_active,
+        is_superuser,
+        is_verified
+    )
 VALUES
     (
         '11111111-1111-1111-1111-111111111111',
         'demo',
-        '$argon2id$v=19$m=65536,t=3,p=4$XOXrlFXbhKcJGAlkXvlHdw$pEeHFWfUCd8QRb/kkD48R77IBcyrDk7grvjqipHZeKw'
+        'demo@example.com',
+        '$argon2id$v=19$m=65536,t=3,p=4$IvEO8Wik//FEOgpPwXkleA$1GtLnqrOhMFD3XCJ81Gjt6ysy8O+jWOQo379BeHPSB8',
+        1,
+        0,
+        1
     );
 
 -- Job

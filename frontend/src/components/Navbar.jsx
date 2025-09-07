@@ -6,15 +6,10 @@ import { DangerButton } from "../utils/ThemeUtils";
 function Navbar({ user, onLogout }) {
 	const navigate = useNavigate();
 
-	const handleLogout = async () => {
-		try {
-			await fetch("/api/auth/logout", { method: "POST" });
-		} catch (e) {
-			/* ignore */
-		}
+	const handleLogout = () => {
 		window.__access_token = undefined;
 		onLogout && onLogout();
-		navigate("/");
+		navigate("/login");
 	};
 
 	return (

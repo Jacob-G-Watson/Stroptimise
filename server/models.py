@@ -10,8 +10,13 @@ def guid():
 
 class User(SQLModel, table=True):
     id: str = Field(default_factory=guid, primary_key=True)
+    # Original username kept for display/backwards compatibility with frontend
     name: str
-    password_hash: str | None = None
+    email: str = Field(index=True, unique=True)
+    hashed_password: str
+    is_active: bool = True
+    is_superuser: bool = False
+    is_verified: bool = False
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")
     jobs: List["Job"] = Relationship(back_populates="user")
     # todo kerf should be per user

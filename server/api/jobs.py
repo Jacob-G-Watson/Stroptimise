@@ -14,9 +14,9 @@ from services.cutsheet_export import (
 )
 import re
 
-from .auth import get_current_user
+from .auth_fastapi_users import current_active_user
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(current_active_user)])
 
 
 @router.get("/jobs")

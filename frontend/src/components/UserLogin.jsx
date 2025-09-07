@@ -2,68 +2,73 @@ import React, { useState } from "react";
 import { PrimaryButton } from "../utils/ThemeUtils";
 
 function UserLogin({ onLogin }) {
-	const [name, setName] = useState("");
+	const [email, setEmail] = useState("");
+	const [displayName, setDisplayName] = useState("");
 	const [password, setPassword] = useState("");
 	const [passwordConfirm, setPasswordConfirm] = useState("");
 	const [error, setError] = useState("");
 	const [isSignup, setIsSignup] = useState(false);
 
-	const doLogin = async (userName, pass) => {
-		const res = await fetch("/api/users/login", {
+	async function doLogin(e, p) {
+		// fastapi-users bearer transport expects form fields username & password
+		const body = new URLSearchParams({ username: e, password: p });
+		const res = await fetch("/api/auth/jwt/login", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: userName, password: pass }),
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: body.toString(),
 		});
 		if (res.ok) {
 			const data = await res.json();
-			const { access_token, user } = data;
-			// Store access token in memory (window) for simplicity; in production consider context/state
-			window.__access_token = access_token;
-			onLogin(user);
+			window.__access_token = data.access_token; // {access_token, token_type}
+			// ask backend to issue refresh cookie
+			await fetch("/api/auth/refresh/bootstrap", {
+				method: "POST",
+				headers: { Authorization: `Bearer ${data.access_token}` },
+			});
+			const me = await fetch("/api/users/me", { headers: { Authorization: `Bearer ${data.access_token}` } });
+			if (me.ok) {
+				const u = await me.json();
+				onLogin(u);
+			}
 			return true;
 		}
 		return false;
-	};
+	}
 
-	const handleSubmit = async (e) => {
+	async function handleSubmit(e) {
 		e.preventDefault();
 		setError("");
 		if (isSignup) {
-			// Client-side validation
-			if (!name || !password) {
-				setError("Username and password are required");
+			if (!email || !password) {
+				setError("Email and password required");
 				return;
 			}
 			if (password !== passwordConfirm) {
 				setError("Passwords do not match");
 				return;
 			}
-			// Attempt to create user
 			try {
-				const res = await fetch("/api/users", {
+				const res = await fetch("/api/auth/register", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ name, password }),
+					body: JSON.stringify({ email, password, name: displayName || email }),
 				});
 				if (res.ok) {
-					const data = await res.json();
-					window.__access_token = data.access_token;
-					onLogin(data.user);
-				} else if (res.status === 404) {
-					setError("Signup is not available on this server");
+					// auto-login after register
+					const loginOk = await doLogin(email, password);
+					if (!loginOk) setError("Registered but login failed");
 				} else {
 					const data = await res.json().catch(() => ({}));
 					setError(data.detail || "Signup failed");
 				}
-			} catch (err) {
+			} catch (_) {
 				setError("Network error during signup");
 			}
 		} else {
-			// Login flow
-			const success = await doLogin(name, password);
-			if (!success) setError("Invalid username or password");
+			const success = await doLogin(email, password);
+			if (!success) setError("Invalid email or password");
 		}
-	};
+	}
 
 	return (
 		<div className="flex flex-col items-center justify-center bg-stropt-beige">
@@ -74,13 +79,22 @@ function UserLogin({ onLogin }) {
 				<h2 className="text-xl font-bold mb-4">{isSignup ? "Sign up" : "Login"}</h2>
 				<form onSubmit={handleSubmit}>
 					<input
-						type="text"
-						placeholder="Username"
-						value={name}
-						onChange={(e) => setName(e.target.value)}
+						type="email"
+						placeholder="Email"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
 						className="border px-2 py-1 mb-2 w-full"
 						required
 					/>
+					{isSignup && (
+						<input
+							type="text"
+							placeholder="Display name (optional)"
+							value={displayName}
+							onChange={(e) => setDisplayName(e.target.value)}
+							className="border px-2 py-1 mb-2 w-full"
+						/>
+					)}
 					<input
 						type="password"
 						placeholder="Password"

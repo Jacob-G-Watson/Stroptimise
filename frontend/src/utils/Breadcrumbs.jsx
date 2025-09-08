@@ -8,32 +8,72 @@ export default function Breadcrumbs() {
 
 	const { job, cabinet } = React.useContext(SelectionContext);
 	const parts = pathname.split("/").filter(Boolean); // jobs, jobId, optional...
-	if (parts.length < 2) return null;
+	if (parts.length < 2) return null; // need at least /jobs/:jobId
 
 	const jobId = parts[1];
-	const crumbs = [{ label: job?.name || jobId, to: `/jobs/${jobId}` }];
 
-	if (parts[2] === "layout") crumbs.push({ label: "Layout", to: `/jobs/${jobId}/layout` });
-	else if (parts[2] === "cabinet" && parts[3])
-		crumbs.push({ label: cabinet?.name || parts[3], to: `/jobs/${jobId}/cabinet/${parts[3]}` });
+	const truncate = (txt, n = 22) => (txt && txt.length > n ? txt.slice(0, n - 1) + "…" : txt);
+
+	// Include root Jobs crumb (navbar Jobs link removed to avoid duplication)
+	const crumbs = [
+		{ label: "Jobs", to: "/jobs" },
+		{ label: truncate(job?.name || jobId), to: `/jobs/${jobId}` },
+	];
+
+	if (parts[2] === "layout") {
+		crumbs.push({ label: "Layout", to: `/jobs/${jobId}/layout` });
+	} else if (parts[2] === "cabinet" && parts[3]) {
+		crumbs.push({ label: truncate(cabinet?.name || parts[3]), to: `/jobs/${jobId}/cabinet/${parts[3]}` });
+	}
+
+	const lastIndex = crumbs.length - 1;
 
 	return (
-		<ol className="flex items-center gap-2 text-stropt-brown" aria-label="Breadcrumb">
-			{crumbs.map((c, i) => (
-				<React.Fragment key={c.to}>
-					{i > 0 && <span className="text-gray-400">/</span>}
-					<li>
-						<NavLink
-							to={c.to}
-							className={({ isActive }) =>
-								`hover:underline ${isActive ? "text-stropt-green" : "text-stropt-brown"}`
-							}
-						>
-							{c.label}
-						</NavLink>
-					</li>
-				</React.Fragment>
-			))}
-		</ol>
+		<nav aria-label="Breadcrumb">
+			<ol className="flex items-center gap-1 text-xs md:text-sm bg-white/80 px-2 py-1 rounded border border-stropt-green/30 shadow-sm">
+				{crumbs.map((c, i) => {
+					const isLast = i === lastIndex;
+					return (
+						<li key={c.to} className="flex items-center">
+							{i > 0 && (
+								<span className="text-stropt-brown/40 mx-1" aria-hidden="true">
+									{/* Chevron icon */}
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										className="block"
+									>
+										<polyline points="9 18 15 12 9 6" />
+									</svg>
+								</span>
+							)}
+							{isLast ? (
+								<span className="font-semibold text-stropt-green" aria-current="page" title={c.label}>
+									{c.label}
+								</span>
+							) : (
+								<NavLink
+									to={c.to}
+									className={({ isActive }) =>
+										`px-1 rounded hover:underline ${
+											isActive ? "text-stropt-green" : "text-stropt-brown"
+										}`
+									}
+									title={c.label}
+								>
+									{c.label}
+								</NavLink>
+							)}
+						</li>
+					);
+				})}
+			</ol>
+		</nav>
 	);
 }

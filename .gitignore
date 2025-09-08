@@ -16,5 +16,8 @@ frontend/build/
 # OS
 .DS_Store
 Thumbs.db
-.env
+
+.env.local
+.env.unraid
 server/auth.log
+.env

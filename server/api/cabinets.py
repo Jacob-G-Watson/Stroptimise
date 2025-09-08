@@ -5,9 +5,9 @@ from sqlmodel import Session, select
 from db import engine
 from models import Cabinet, Piece
 
-from .auth import get_current_user
+from .auth_fastapi_users import current_active_user
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(current_active_user)])
 
 
 @router.post("/cabinets/{cid}/pieces")

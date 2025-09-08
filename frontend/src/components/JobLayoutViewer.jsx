@@ -38,7 +38,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 	const [sheetWidth, setSheetWidth] = useState(2400); // mm
 	const [sheetHeight, setSheetHeight] = useState(1200); // mm
 	const [allowRotation, setAllowRotation] = useState(true);
-	const [kerf, setKerf] = useState(0);
+	const [kerf, setKerf] = useState(3); // default kerf mm
 	const [packingMode, setPackingMode] = useState("heuristic");
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					sheet_width: Number(sheetWidth),
 					sheet_height: Number(sheetHeight),
 					allow_rotation: allowRotation,
-					kerf_mm: Number(kerf) || 0,
+					kerf_mm: Number(kerf) || 3,
 					packing_mode: packingMode,
 				}),
 			});
@@ -87,7 +87,7 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					sheet_width: Number(sheetWidth),
 					sheet_height: Number(sheetHeight),
 					allow_rotation: allowRotation,
-					kerf_mm: Number(kerf) || 0,
+					kerf_mm: Number(kerf) || 3,
 					packing_mode: packingMode,
 				}),
 			});
@@ -187,10 +187,15 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 						value={packingMode}
 						onChange={(e) => setPackingMode(e.target.value)}
 						className="border px-2 py-1 rounded w-32"
+						aria-label="Packing mode (only heuristic available)"
 					>
-						<option value="simple">Simple</option>
+						<option value="simple" disabled title="Simple packing not available">
+							Simple
+						</option>
 						<option value="heuristic">Heuristic</option>
-						<option value="exhaustive">Exhaustive</option>
+						<option value="exhaustive" disabled title="Exhaustive packing not available">
+							Exhaustive
+						</option>
 					</select>
 				</div>
 				<label className="inline-flex items-center gap-2">

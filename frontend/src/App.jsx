@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import UserLogin from "./components/UserLogin";
 import UserJobsList from "./components/UserJobsList";
 import JobDetails from "./components/JobDetails";
@@ -31,12 +31,31 @@ function App() {
 					<Route
 						path="/"
 						element={
-							<UserLogin
-								onLogin={(u) => {
-									setUser(u);
-									navigate("/jobs");
-								}}
-							/>
+							user ? (
+								<Navigate to="/jobs" replace />
+							) : (
+								<UserLogin
+									onLogin={(u) => {
+										setUser(u);
+										navigate("/jobs");
+									}}
+								/>
+							)
+						}
+					/>
+					<Route
+						path="/login"
+						element={
+							user ? (
+								<Navigate to="/jobs" replace />
+							) : (
+								<UserLogin
+									onLogin={(u) => {
+										setUser(u);
+										navigate("/jobs");
+									}}
+								/>
+							)
 						}
 					/>
 					<Route element={<ProtectedRoute user={user} />}>

@@ -65,31 +65,53 @@ def pack_irregular(
     norm_pieces.sort(key=lambda it: it["inflated"].area, reverse=True)
 
     sheets: List[Dict[str, Any]] = []
-    current_sheet = _new_sheet(len(sheets), sheet_width, sheet_height)
-    placed_inflated = []
-    placed_base = []
-    candidates = [(0.0, 0.0)]
+
+    # Helper to ensure a sheet has internal tracking lists
+    def _ensure_internal(sheet: Dict[str, Any]):
+        sheet.setdefault("_placed_inflated", [])
+        sheet.setdefault("_candidates", [(0.0, 0.0)])
+        return sheet
+
+    # Start with one sheet
+    sheets.append(_ensure_internal(_new_sheet(0, sheet_width, sheet_height)))
 
     for item in norm_pieces:
-        if packing_mode == "simple":
-            placed = _place_on_sheet_simple(
-                item, sheet_poly, placed_inflated, use_inflated=True
-            )
-        elif packing_mode == "exhaustive":
-            placed = _place_on_sheet_exhaustive(
-                item, sheet_poly, placed_inflated, angles, use_inflated=True
-            )
-        else:
-            placed = _place_on_sheet(
-                item, sheet_poly, placed_inflated, candidates, angles, use_inflated=True
-            )
+        placed = None
+        target_sheet = None
+
+        # Try to fit on any existing sheet before opening a new one
+        for sh in sheets:
+            placed_inflated = sh["_placed_inflated"]
+            candidates = sh["_candidates"]
+            if packing_mode == "simple":
+                placed = _place_on_sheet_simple(
+                    item, sheet_poly, placed_inflated, use_inflated=True
+                )
+            elif packing_mode == "exhaustive":
+                placed = _place_on_sheet_exhaustive(
+                    item, sheet_poly, placed_inflated, angles, use_inflated=True
+                )
+            else:
+                placed = _place_on_sheet(
+                    item,
+                    sheet_poly,
+                    placed_inflated,
+                    candidates,
+                    angles,
+                    use_inflated=True,
+                )
+            if placed:
+                target_sheet = sh
+                break
 
         if not placed:
-            sheets.append(current_sheet)
-            current_sheet = _new_sheet(len(sheets), sheet_width, sheet_height)
-            placed_inflated = []
-            placed_base = []
-            candidates = [(0.0, 0.0)]
+            # Need a new sheet
+            new_sheet = _ensure_internal(
+                _new_sheet(len(sheets), sheet_width, sheet_height)
+            )
+            sheets.append(new_sheet)
+            placed_inflated = new_sheet["_placed_inflated"]
+            candidates = new_sheet["_candidates"]
             if packing_mode == "simple":
                 placed = _place_on_sheet_simple(
                     item, sheet_poly, placed_inflated, use_inflated=True
@@ -108,6 +130,7 @@ def pack_irregular(
                     use_inflated=True,
                 )
             if not placed:
+                # Fallback: try without inflated clearance ONLY on the fresh empty sheet
                 if packing_mode == "simple":
                     placed = _place_on_sheet_simple(
                         item, sheet_poly, placed_inflated, use_inflated=False
@@ -129,13 +152,13 @@ def pack_irregular(
                     raise RuntimeError(
                         f"Failed to place piece {item['id']} on an empty sheet (check dimensions)"
                     )
+            target_sheet = new_sheet
 
         base_abs, inflated_abs, angle_deg = placed
-        placed_inflated.append(inflated_abs)
-        placed_base.append(base_abs)
+        target_sheet["_placed_inflated"].append(inflated_abs)
 
         coords = list(base_abs.exterior.coords)[:-1]
-        current_sheet["polygons"].append(
+        target_sheet["polygons"].append(
             {
                 "piece_id": item["id"],
                 "name": item["name"],
@@ -145,7 +168,7 @@ def pack_irregular(
         )
 
         minx, miny, maxx, maxy = base_abs.bounds
-        current_sheet["rects"].append(
+        target_sheet["rects"].append(
             {
                 "piece_id": item["id"],
                 "name": item["name"],
@@ -157,12 +180,25 @@ def pack_irregular(
             }
         )
 
-        bx_min, by_min, bx_max, by_max = inflated_abs.bounds
-        candidates.extend([(bx_max, by_min), (bx_min, by_max)])
-        candidates = _prune_candidates(candidates, sheet_width, sheet_height)
+        # Update candidates for heuristic mode
+        if packing_mode not in ("simple", "exhaustive"):
+            bx_min, by_min, bx_max, by_max = inflated_abs.bounds
+            target_sheet["_candidates"].extend([(bx_max, by_min), (bx_min, by_max)])
+            target_sheet["_candidates"] = _prune_candidates(
+                target_sheet["_candidates"], sheet_width, sheet_height
+            )
 
-    sheets.append(current_sheet)
-    return {"sheets": sheets}
+    # Clean sheets for output (strip internal keys)
+    cleaned = []
+    for sh in sheets:
+        cleaned.append(
+            {
+                k: v
+                for k, v in sh.items()
+                if not k.startswith("_")  # remove internal bookkeeping
+            }
+        )
+    return {"sheets": cleaned}
 
 
 # ---- helpers extracted directly ----
@@ -327,8 +363,7 @@ def _place_on_sheet_simple(item, sheet_poly, placed_inflated, use_inflated=True)
         ):
             return base_poly, base_poly, 0
 
-    # Simple grid scan: step by 100mm
-    step = 100
+    step = 20
     for x in range(0, int(sheet_poly.bounds[2]), step):
         for y in range(0, int(sheet_poly.bounds[3]), step):
             translated = shp_translate(

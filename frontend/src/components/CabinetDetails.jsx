@@ -1,17 +1,26 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
-import { authFetch } from "../services/authFetch";
+import {
+	addPieceToCabinet as addPieceToCabinet,
+	getCabinet,
+	getCabinetPieces,
+	deletePiece,
+	ApiError,
+} from "../services/api";
+import { notify } from "../utils/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
+import PieceEditor from "./PieceEditor";
 
 function CabinetDetails({ cabinet: cabinetProp }) {
 	const params = useParams();
 	const location = useLocation();
-	const { cabinet: contextCabinet } = React.useContext(SelectionContext);
+	const { cabinet: contextCabinet } = useContext(SelectionContext);
 	const cabinetIdFromParams = params.cabinetId;
 	const cabinetFromState = location?.state?.cabinet;
 	const [cabinet, setCabinet] = useState(cabinetProp || cabinetFromState || contextCabinet || null);
 	const [pieces, setPieces] = useState([]);
+	const [editingPiece, setEditingPiece] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [pieceName, setPieceName] = useState("");
@@ -21,16 +30,13 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 	const [adding, setAdding] = useState(false);
 	const [deletingIds, setDeletingIds] = useState(new Set());
 
-	React.useEffect(() => {
+	useEffect(() => {
 		let cancelled = false;
 		(async () => {
 			try {
 				if (!cabinet && cabinetIdFromParams) {
-					const r = await authFetch(`/api/cabinets/${cabinetIdFromParams}`);
-					if (r.ok) {
-						const c = await r.json();
-						if (!cancelled) setCabinet(c);
-					}
+					const c = await getCabinet(cabinetIdFromParams);
+					if (!cancelled) setCabinet(c);
 				}
 			} catch (e) {
 				/* ignore */
@@ -39,8 +45,7 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 
 		if (!cabinet?.id) return;
 		setLoading(true);
-		authFetch(`/api/cabinets/${cabinet.id}/pieces`)
-			.then((res) => res.json())
+		getCabinetPieces(cabinet.id)
 			.then((data) => {
 				setPieces(Array.isArray(data) ? data : []);
 				setLoading(false);
@@ -56,28 +61,30 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		setAdding(true);
 		setError("");
 		try {
-			const res = await authFetch(`/api/cabinets/${cabinet.id}/pieces`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					name: pieceName,
-					width: pieceWidth || undefined,
-					height: pieceHeight || undefined,
-					polygon: polygonText ? JSON.parse(polygonText) : undefined,
-				}),
-			});
-			if (!res.ok) throw new Error("Failed to add piece");
-			const newPiece = await res.json();
-			setPieces((prev) => [...prev, newPiece]);
-			setPieceName("");
-			setPieceWidth("");
-			setPieceHeight("");
-			setPolygonText("");
+			await tryAddViaApiResetPiece();
 		} catch (err) {
-			setError(err.message);
+			if (err instanceof ApiError) {
+				setError(err.serverMessage);
+				notify({ type: "error", message: err.serverMessage });
+			} else {
+				throw err;
+			}
 		} finally {
 			setAdding(false);
 		}
+	};
+	const tryAddViaApiResetPiece = async () => {
+		const newPiece = await addPieceToCabinet(cabinet.id, {
+			name: pieceName,
+			width: pieceWidth || undefined,
+			height: pieceHeight || undefined,
+			polygon: polygonText ? JSON.parse(polygonText) : undefined,
+		});
+		setPieces((prev) => [...prev, newPiece]);
+		setPieceName("");
+		setPieceWidth("");
+		setPieceHeight("");
+		setPolygonText("");
 	};
 
 	const handleDeletePiece = async (id) => {
@@ -86,11 +93,15 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		setError("");
 		setDeletingIds((prev) => new Set(prev).add(id));
 		try {
-			const res = await authFetch(`/api/pieces/${id}`, { method: "DELETE" });
-			if (!res.ok) throw new Error("Failed to delete piece");
+			await deletePiece(id);
 			setPieces((prev) => prev.filter((p) => p.id !== id));
 		} catch (err) {
-			setError(err.message || "Delete failed");
+			if (err instanceof ApiError) {
+				setError(err.serverMessage);
+				notify({ type: "error", message: err.serverMessage });
+			} else {
+				throw err;
+			}
 		} finally {
 			setDeletingIds((prev) => {
 				const copy = new Set(prev);
@@ -100,18 +111,30 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		}
 	};
 
-	if (!cabinet)
+	const handleEditPiece = (piece) => {
+		setError("");
+		setEditingPiece(piece);
+	};
+
+	const renderPiecesList = () => {
 		return (
-			<div className="p-4 bg-white rounded shadow mx-auto mt-6 stropt-border min-w-[50%] w-auto max-w-[50vw]">
-				<div>Loading cabinet...</div>
+			<div className="">
+				<h3 className="font-semibold">Pieces</h3>
+				<ul className="list-disc pl-6 min-w-[30%] max-w-fit">
+					{pieces.map((piece) => (
+						<li key={piece.id} className="flex items-center gap-4 w-full">
+							{editingPiece && editingPiece.id === piece.id
+								? renderPieceEditor(editingPiece, setError)
+								: renderPieceItem(piece, handleEditPiece, handleDeletePiece, deletingIds)}
+						</li>
+					))}
+				</ul>
 			</div>
 		);
+	};
 
-	return (
-		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
-			<h2 className="text-xl font-bold mb-2 text-stropt-brown">Cabinet: {cabinet.name}</h2>
-			{loading && <div>Loading pieces...</div>}
-			{error && <div className="text-red-500">{error}</div>}
+	const renderAddPieceForm = () => {
+		return (
 			<form
 				onSubmit={handleAddPiece}
 				className={`mb-4 flex gap-2 items-center w-max max-w-[90vw] border p-2 rounded`}
@@ -160,30 +183,62 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 					</div>
 				</div>
 			</form>
-			<div className="">
-				<h3 className="font-semibold">Pieces</h3>
-				{/* Width might not be an issue with the top fixed */}
-				<ul className="list-disc pl-6 min-w-[30%] max-w-fit">
-					{pieces.map((piece) => (
-						<li key={piece.id} className="flex items-center gap-4">
-							<span className="flex-1 break-all">
-								{piece.name || piece.id} - {piece.width} x {piece.height}
-							</span>
-							{piece.polygon ? (
-								<span className="ml-2 text-xs bg-stropt-green-light text-stropt-brown px-1 rounded">
-									polygon
-								</span>
-							) : null}
-							<DangerButton
-								onClick={() => handleDeletePiece(piece.id)}
-								disabled={deletingIds.has(piece.id)}
-							>
-								{deletingIds.has(piece.id) ? "Deleting..." : "Delete"}
-							</DangerButton>
-						</li>
-					))}
-				</ul>
+		);
+	};
+
+	const renderPieceItem = (piece, handleEditPiece, handleDeletePiece, deletingIds) => {
+		return (
+			<>
+				<span className="flex-1 break-all">
+					{piece.name || piece.id} - {piece.width} x {piece.height}
+				</span>
+				{piece.polygon ? (
+					<span className="ml-2 text-xs bg-stropt-green-light text-stropt-brown px-1 rounded">polygon</span>
+				) : null}
+				<PrimaryButton onClick={() => handleEditPiece(piece)} className="whitespace-nowrap px-3 py-1 text-sm">
+					Edit
+				</PrimaryButton>
+				<DangerButton onClick={() => handleDeletePiece(piece.id)} disabled={deletingIds.has(piece.id)}>
+					{deletingIds.has(piece.id) ? "Deleting..." : "Delete"}
+				</DangerButton>
+			</>
+		);
+	};
+
+	const renderPieceEditor = (editingPiece, setError) => {
+		const handleSavedPiece = (updated) => {
+			setPieces((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+			setEditingPiece(null);
+		};
+
+		return (
+			<div className="w-full">
+				<PieceEditor
+					piece={editingPiece}
+					onSaved={handleSavedPiece}
+					onCancel={() => setEditingPiece(null)}
+					onError={(msg) => setError(msg)}
+					patchPathPrefix={`/api/pieces`}
+				/>
 			</div>
+		);
+	};
+
+	return (
+		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
+			{!cabinet ? (
+				<div className="min-w-[50%] w-auto max-w-[50vw] mx-auto">
+					<div>Loading cabinet...</div>
+				</div>
+			) : (
+				<>
+					<h2 className="text-xl font-bold mb-2 text-stropt-brown">Cabinet: {cabinet.name}</h2>
+					{loading && <div>Loading pieces...</div>}
+					{error && <div className="text-red-500">{error}</div>}
+					{renderAddPieceForm()}
+					{renderPiecesList()}
+				</>
+			)}
 		</div>
 	);
 }

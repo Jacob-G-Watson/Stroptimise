@@ -9,6 +9,7 @@ import Navbar from "./components/Navbar";
 import SelectionContext from "./utils/SelectionContext";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import { useSession } from "./services/useSession";
+import NotificationCenter from "./utils/NotificationCenter";
 
 function App() {
 	const { user, setUser } = useSession();
@@ -25,6 +26,7 @@ function App() {
 
 	return (
 		<div className=" bg-stropt-beige p-4">
+			<NotificationCenter />
 			<SelectionContext.Provider value={{ job, setJob, cabinet, setCabinet }}>
 				<Navbar user={user} onLogout={handleLogout} />
 				<Routes>

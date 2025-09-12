@@ -1,0 +1,74 @@
+import { useState } from "react";
+import { authFetch } from "../services/authFetch";
+import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
+
+function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/api/pieces" }) {
+	const [name, setName] = useState(piece.name || "");
+	const [width, setWidth] = useState(piece.width || "");
+	const [height, setHeight] = useState(piece.height || "");
+	const [polygonText, setPolygonText] = useState(piece.polygon ? JSON.stringify(piece.polygon) : "");
+	const [saving, setSaving] = useState(false);
+
+	const handleSave = async () => {
+		setSaving(true);
+		if (onError) onError("");
+		try {
+			const body = {
+				name,
+				width: width || undefined,
+				height: height || undefined,
+				polygon: polygonText ? JSON.parse(polygonText) : undefined,
+			};
+			const res = await authFetch(`${patchPathPrefix}/${piece.id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!res.ok) throw new Error("Failed to save piece");
+			const updated = await res.json();
+			if (onSaved) onSaved(updated);
+		} catch (err) {
+			if (onError) onError(err.message || "Save failed");
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	return (
+		<div className="flex-1 flex flex-col gap-2 border p-4 rounded my-3">
+			<input
+				type="text"
+				value={name}
+				onChange={(e) => setName(e.target.value)}
+				className="border px-2 py-1 rounded text-sm w-full"
+			/>
+			<div className="flex gap-2">
+				<input
+					type="number"
+					value={width}
+					onChange={(e) => setWidth(e.target.value)}
+					className="border px-2 py-1 rounded text-sm w-1/2"
+				/>
+				<input
+					type="number"
+					value={height}
+					onChange={(e) => setHeight(e.target.value)}
+					className="border px-2 py-1 rounded text-sm w-1/2"
+				/>
+			</div>
+			<textarea
+				value={polygonText}
+				onChange={(e) => setPolygonText(e.target.value)}
+				className="border px-2 py-1 my-1 rounded text-sm"
+			/>
+			<div className="flex gap-2">
+				<PrimaryButton onClick={handleSave} disabled={saving}>
+					{saving ? "Saving..." : "Save"}
+				</PrimaryButton>
+				<DangerButton onClick={onCancel}>Cancel</DangerButton>
+			</div>
+		</div>
+	);
+}
+
+export default PieceEditor;

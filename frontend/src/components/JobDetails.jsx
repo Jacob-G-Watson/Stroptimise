@@ -90,69 +90,86 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 
 	if (!job) return null;
 
-	return (
-		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
-			<h2 className="text-xl font-bold mb-2 text-stropt-brown">Current Job: {job.name || job.id}</h2>
-			<PrimaryButton className="mb-4 mr-2" onClick={() => handleViewLayout(true)}>
-				View Layout
+	const cabinetList = (
+		<ul className="pl-0">
+			{cabinets.map((cabinet) => (
+				<li key={cabinet.id} className="mb-2 border rounded">
+					<div className="flex items-center justify-between p-2">
+						<div className="flex items-center gap-2">
+							<button
+								aria-label={expanded[cabinet.id] ? "Collapse" : "Expand"}
+								onClick={() => toggleExpanded(cabinet.id)}
+								className="text-xl w-6 h-6 flex items-center justify-center"
+							>
+								{expanded[cabinet.id] ? "▾" : "▸"}
+							</button>
+							<span className="font-medium text-stropt-brown">{cabinet.name || cabinet.id}</span>
+						</div>
+						<div>
+							<PrimaryButton onClick={() => onEditCabinet(cabinet)}>Edit</PrimaryButton>
+							<DangerButton
+								onClick={async () => {
+									if (!window.confirm("Delete this cabinet and its pieces?")) return;
+									try {
+										await deleteCabinet(cabinet.id);
+										setCabinets((prev) => prev.filter((c) => c.id !== cabinet.id));
+									} catch (err) {
+										const msg = err instanceof ApiError ? err.serverMessage : err.message;
+										setError(msg || "Delete failed");
+										notify({ type: "error", message: msg });
+									}
+								}}
+							>
+								Delete
+							</DangerButton>
+						</div>
+					</div>
+
+					{expanded[cabinet.id] && <CabinetDetails cabinet={cabinet} />}
+				</li>
+			))}
+		</ul>
+	);
+	const cabinetForm = (
+		<form onSubmit={handleAddCabinet} className="mb-4 flex gap-2 items-center">
+			<input
+				type="text"
+				placeholder="Cabinet name"
+				value={cabinetName}
+				onChange={(e) => setCabinetName(e.target.value)}
+				className="border px-2 py-1 rounded"
+				required
+			/>
+			<PrimaryButton type="submit" className="" disabled={adding}>
+				{adding ? "Adding..." : "Add Cabinet"}
 			</PrimaryButton>
-			{loading && <div>Loading cabinets...</div>}
-			{error && <div className="text-red-500">{error}</div>}
+		</form>
+	);
+	return (
+		<div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6 px-4 items-start">
+			{/* left spacer on large screens */}
+			<div className="hidden lg:block" />
 
-			<div>
-				<h3 className="font-semibold">Cabinets</h3>
-				<ul className="pl-0">
-					{cabinets.map((cabinet) => (
-						<li key={cabinet.id} className="mb-2 border rounded">
-							<div className="flex items-center justify-between p-2">
-								<div className="flex items-center gap-2">
-									<button
-										aria-label={expanded[cabinet.id] ? "Collapse" : "Expand"}
-										onClick={() => toggleExpanded(cabinet.id)}
-										className="text-xl w-6 h-6 flex items-center justify-center"
-									>
-										{expanded[cabinet.id] ? "▾" : "▸"}
-									</button>
-									<span className="font-medium text-stropt-brown">{cabinet.name || cabinet.id}</span>
-								</div>
-								<div>
-									<PrimaryButton onClick={() => onEditCabinet(cabinet)}>Edit</PrimaryButton>
-									<DangerButton
-										onClick={async () => {
-											if (!window.confirm("Delete this cabinet and its pieces?")) return;
-											try {
-												await deleteCabinet(cabinet.id);
-												setCabinets((prev) => prev.filter((c) => c.id !== cabinet.id));
-											} catch (err) {
-												const msg = err instanceof ApiError ? err.serverMessage : err.message;
-												setError(msg || "Delete failed");
-												notify({ type: "error", message: msg });
-											}
-										}}
-									>
-										Delete
-									</DangerButton>
-								</div>
-							</div>
+			{/* FIRST BOX: centered on small, middle column on large. Prevent overflow with min-w-0 and max-w-full */}
+			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full mx-auto min-w-0 overflow-hidden">
+				<div className="flex items-center justify-between mb-3 gap-2">
+					<h2 className="text-xl font-bold text-stropt-brown truncate">Current Job: {job.name || job.id}</h2>
+					<PrimaryButton onClick={() => handleViewLayout(true)}>View Layout</PrimaryButton>
+				</div>
 
-							{expanded[cabinet.id] && <CabinetDetails cabinet={cabinet} />}
-						</li>
-					))}
-				</ul>
+				{loading && <div>Loading cabinets...</div>}
+				{error && <div className="text-red-500">{error}</div>}
 
-				<form onSubmit={handleAddCabinet} className="mb-4 flex gap-2 items-center">
-					<input
-						type="text"
-						placeholder="Cabinet name"
-						value={cabinetName}
-						onChange={(e) => setCabinetName(e.target.value)}
-						className="border px-2 py-1 rounded"
-						required
-					/>
-					<PrimaryButton type="submit" className="" disabled={adding}>
-						{adding ? "Adding..." : "Add Cabinet"}
-					</PrimaryButton>
-				</form>
+				<div className="min-w-0">
+					<h3 className="font-semibold">Cabinets</h3>
+					{cabinetList}
+					{cabinetForm}
+				</div>
+			</div>
+
+			{/* SECOND BOX: stacks below on small screens; on large screens it's placed in column 3 and right-aligned */}
+			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full min-w-0 lg:justify-self-end overflow-hidden">
+				{/* SECOND BOX */}
 			</div>
 		</div>
 	);

@@ -4,9 +4,8 @@ import SelectionContext from "./SelectionContext";
 
 export default function Breadcrumbs() {
 	const { pathname } = useLocation();
-	if (!pathname.startsWith("/jobs") || pathname === "/jobs") return null;
-
 	const { job, cabinet } = React.useContext(SelectionContext);
+	if (!pathname.startsWith("/jobs") || pathname === "/jobs") return null;
 	const parts = pathname.split("/").filter(Boolean); // jobs, jobId, optional...
 	if (parts.length < 2) return null; // need at least /jobs/:jobId
 

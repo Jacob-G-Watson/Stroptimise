@@ -259,13 +259,16 @@ export async function deleteCabinet(cabinetId: string): Promise<null> {
 }
 
 // User cabinets
-export async function getUserCabinets(userId: string, { signal }: { signal?: AbortSignal } = {}): Promise<Cabinet[]> {
+export async function getUserCabinets(
+	userId: string,
+	{ signal }: { signal?: AbortSignal } = {}
+): Promise<UserCabinet[]> {
 	const res = await authFetch(`/api/users/${userId}/cabinets`, { signal });
 	const data = await handleResponse<Cabinet[]>(res);
 	return _normalizeCabinetsArray(data);
 }
 
-export async function addUserCabinet(userId: string, { name }: { name: string }): Promise<Cabinet> {
+export async function addUserCabinet(userId: string, { name }: { name: string }): Promise<UserCabinet> {
 	const res = await authFetch(`/api/users/${userId}/cabinets`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

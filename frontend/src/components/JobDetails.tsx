@@ -5,11 +5,11 @@ import { getJob, getJobCabinets, addCabinetToJob, deleteCabinet, ApiError } from
 import { notify } from "../services/notify";
 import CabinetDetails from "./CabinetDetails";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
-import type { Job, Cabinet } from "../types/api";
+import type { Job, CabinetBase } from "../types/api";
 
 interface Props {
 	job: Job | null;
-	onEditCabinet: (cabinet: Cabinet) => void;
+	onEditCabinet: (cabinet: CabinetBase) => void;
 	handleViewLayout: () => void;
 }
 
@@ -18,7 +18,7 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 	const { job: contextJob, setJob: setContextJob } = React.useContext(SelectionContext);
 	const jobIdFromParams = params.jobId!;
 	const [job, setJob] = useState<Job | null>(jobProp || contextJob || null);
-	const [cabinets, setCabinets] = useState<Cabinet[]>([]);
+	const [cabinets, setCabinets] = useState<CabinetBase[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [adding, setAdding] = useState(false);

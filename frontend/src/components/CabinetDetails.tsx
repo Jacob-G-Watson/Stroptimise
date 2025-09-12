@@ -5,10 +5,10 @@ import { addPieceToCabinet, getCabinet, getCabinetPieces, deletePiece, ApiError 
 import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 import PieceEditor from "./PieceEditor";
-import type { Cabinet, PieceBase } from "../types/api";
+import type { CabinetBase, PieceBase } from "../types/api";
 
 interface Props {
-	cabinet: Cabinet | null;
+	cabinet: CabinetBase | null;
 }
 
 function CabinetDetails({ cabinet: cabinetProp }: Props) {
@@ -16,8 +16,10 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const location = useLocation();
 	const { cabinet: contextCabinet } = useContext(SelectionContext);
 	const cabinetIdFromParams = params.cabinetId;
-	const cabinetFromState = (location as any)?.state?.cabinet as Cabinet | undefined;
-	const [cabinet, setCabinet] = useState<Cabinet | null>(cabinetProp || cabinetFromState || contextCabinet || null);
+	const cabinetFromState = (location as any)?.state?.cabinet as CabinetBase | undefined;
+	const [cabinet, setCabinet] = useState<CabinetBase | null>(
+		cabinetProp || cabinetFromState || contextCabinet || null
+	);
 	const [pieces, setPieces] = useState<PieceBase[]>([]);
 	const [editingPiece, setEditingPiece] = useState<PieceBase | null>(null);
 	const [loading, setLoading] = useState(false);

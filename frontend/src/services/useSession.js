@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, ApiError } from "./api";
+import { getCurrentUser, refreshToken } from "./api";
 
 // Session hook with silent refresh using refresh cookie.
 export function useSession() {
@@ -17,9 +17,8 @@ export function useSession() {
 		(async () => {
 			try {
 				// Attempt refresh to obtain access token from cookie
-				const r = await fetch("/api/auth/refresh", { method: "POST" });
-				if (r.ok) {
-					const data = await r.json();
+				const data = await refreshToken().catch(() => null);
+				if (data) {
 					window.__access_token = data.access_token;
 					schedule(data.expires_in);
 					try {
@@ -47,15 +46,10 @@ export function useSession() {
 		const delay = Math.max(5000, (expiresIn - 60) * 1000);
 		if (timerRef.current) clearTimeout(timerRef.current);
 		timerRef.current = setTimeout(async () => {
-			try {
-				const r = await fetch("/api/auth/refresh", { method: "POST" });
-				if (r.ok) {
-					const data = await r.json();
-					window.__access_token = data.access_token;
-					schedule(data.expires_in);
-				}
-			} catch (_) {
-				/* ignore */
+			const data = await refreshToken().catch(() => null);
+			if (data) {
+				window.__access_token = data.access_token;
+				schedule(data.expires_in);
 			}
 		}, delay);
 	}

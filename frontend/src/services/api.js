@@ -11,6 +11,56 @@ export class ApiError extends Error {
 	}
 }
 
+// Authentication endpoints
+export async function authLogin(username, password) {
+	const body = new URLSearchParams({ username, password }).toString();
+	const res = await fetch(`/api/auth/jwt/login`, {
+		method: "POST",
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		body,
+	});
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new ApiError(res.status, text || res.statusText, text);
+	}
+	return await res.json();
+}
+
+export async function authRegister({ email, password, name }) {
+	const res = await fetch(`/api/auth/register`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ email, password, name }),
+	});
+	if (!res.ok) {
+		const body = await res.json().catch(() => null);
+		const msg = body?.detail || body?.message || (await res.text().catch(() => ""));
+		throw new ApiError(res.status, msg || res.statusText, body);
+	}
+	return await res.json();
+}
+
+export async function bootstrapRefresh(accessToken) {
+	const res = await fetch(`/api/auth/refresh/bootstrap`, {
+		method: "POST",
+		headers: { Authorization: `Bearer ${accessToken}` },
+	});
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new ApiError(res.status, text || res.statusText, text);
+	}
+	return await res.json().catch(() => null);
+}
+
+export async function refreshToken() {
+	const res = await fetch(`/api/auth/refresh`, { method: "POST" });
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new ApiError(res.status, text || res.statusText, text);
+	}
+	return await res.json().catch(() => null);
+}
+
 async function handleResponse(res) {
 	// Throw on non-OK
 	if (!res.ok) {

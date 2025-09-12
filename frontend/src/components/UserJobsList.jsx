@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getJobsForUser, createJob, ApiError } from "../services/api";
-import { notify } from "../utils/notify";
+import { notify } from "../services/notify";
 import { PrimaryButton } from "../utils/ThemeUtils";
 
 function UserJobsList({ user, onSelectJob }) {

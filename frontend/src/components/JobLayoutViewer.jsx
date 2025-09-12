@@ -7,7 +7,7 @@ import {
 	quickDownloadJobPath,
 	ApiError,
 } from "../services/api";
-import { notify } from "../utils/notify";
+import { notify } from "../services/notify";
 import SheetSvg from "../utils/SheetSvg";
 import { useParams } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";

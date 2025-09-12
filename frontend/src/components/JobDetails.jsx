@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
 import { getJob, getJobCabinets, addCabinetToJob, deleteCabinet, ApiError } from "../services/api";
-import { notify } from "../utils/notify";
+import { notify } from "../services/notify";
 import CabinetDetails from "./CabinetDetails";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 

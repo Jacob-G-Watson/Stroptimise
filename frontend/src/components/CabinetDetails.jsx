@@ -8,7 +8,7 @@ import {
 	deletePiece,
 	ApiError,
 } from "../services/api";
-import { notify } from "../utils/notify";
+import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 import PieceEditor from "./PieceEditor";
 

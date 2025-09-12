@@ -117,6 +117,30 @@ export async function deletePiece(pieceId) {
 	return await handleResponse(res);
 }
 
+// User-scoped pieces (user cabinets)
+export async function addPieceToUserCabinet(userCabinetId, { name, width, height, polygon } = {}) {
+	const res = await authFetch(`/api/user_cabinets/${userCabinetId}/pieces`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name, width, height, polygon }),
+	});
+	return await handleResponse(res);
+}
+
+export async function getUserCabinetPieces(userCabinetId) {
+	const res = await authFetch(`/api/user_cabinets/${userCabinetId}/pieces`);
+	return await handleResponse(res);
+}
+
+export async function deleteUserPiece(pieceId) {
+	const res = await authFetch(`/api/user_pieces/${pieceId}`, { method: "DELETE" });
+	return await handleResponse(res);
+}
+
+export async function patchUserPiece(pieceId, body = {}) {
+	return await patchPiece(pieceId, body, "/api/user_pieces");
+}
+
 // Jobs
 export async function getJobsForUser(userId, { signal } = {}) {
 	const res = await authFetch(`/api/jobs?user_id=${userId}`, { signal });
@@ -154,6 +178,26 @@ export async function addCabinetToJob(jobId, { name }) {
 
 export async function deleteCabinet(cabinetId) {
 	const res = await authFetch(`/api/cabinets/${cabinetId}`, { method: "DELETE" });
+	return await handleResponse(res);
+}
+
+// User cabinets
+export async function getUserCabinets(userId, { signal } = {}) {
+	const res = await authFetch(`/api/users/${userId}/cabinets`, { signal });
+	return await handleResponse(res);
+}
+
+export async function addUserCabinet(userId, { name }) {
+	const res = await authFetch(`/api/users/${userId}/cabinets`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
+	});
+	return await handleResponse(res);
+}
+
+export async function deleteUserCabinet(userCabinetId) {
+	const res = await authFetch(`/api/user_cabinets/${userCabinetId}`, { method: "DELETE" });
 	return await handleResponse(res);
 }
 

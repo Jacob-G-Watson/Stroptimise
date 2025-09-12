@@ -1,7 +1,12 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
+import type { User } from "../types/api";
 
-function ProtectedRoute({ user }) {
+interface Props {
+	user: User | null;
+}
+
+function ProtectedRoute({ user }: Props) {
 	if (!user) return <Navigate to="/" replace />;
 	return <Outlet />;
 }

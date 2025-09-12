@@ -1,25 +1,27 @@
 import { useEffect, useState } from "react";
 
-function NotificationCenter() {
-	const [toasts, setToasts] = useState([]);
+interface Toast {
+	id: number;
+	type: string;
+	message: string;
+}
 
+function NotificationCenter() {
+	const [toasts, setToasts] = useState<Toast[]>([]);
 	useEffect(() => {
-		function onNotify(e) {
-			const { type, message } = e.detail || {};
+		function onNotify(e: Event) {
+			const ce = e as CustomEvent<{ type: string; message: string }>;
+			const { type, message } = ce.detail || { type: "info", message: "" };
 			const id = Date.now() + Math.random();
 			setToasts((t) => [...t, { id, type, message }]);
-			// auto remove
 			setTimeout(() => {
 				setToasts((t) => t.filter((x) => x.id !== id));
 			}, 5000);
 		}
-
-		window.addEventListener("app:notify", onNotify);
-		return () => window.removeEventListener("app:notify", onNotify);
+		window.addEventListener("app:notify", onNotify as EventListener);
+		return () => window.removeEventListener("app:notify", onNotify as EventListener);
 	}, []);
-
 	if (!toasts.length) return null;
-
 	return (
 		<div className="fixed top-4 right-4 flex flex-col gap-2 z-50">
 			{toasts.map((t) => (

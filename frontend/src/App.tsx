@@ -10,15 +10,16 @@ import SelectionContext from "./utils/SelectionContext";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import { useSession } from "./services/useSession";
 import NotificationCenter from "./utils/NotificationCenter";
+import type { Job, Cabinet, User } from "./types/api";
 
 function App() {
 	const { user, setUser } = useSession();
-	const [job, setJob] = useState(null);
-	const [cabinet, setCabinet] = useState(null);
+	const [job, setJob] = useState<Job | null>(null);
+	const [cabinet, setCabinet] = useState<Cabinet | null>(null);
 	const navigate = useNavigate();
 
 	const handleLogout = () => {
-		setUser(null);
+		setUser(null as unknown as User | null);
 		setJob(null);
 		window.__access_token = undefined;
 		navigate("/", { replace: true });

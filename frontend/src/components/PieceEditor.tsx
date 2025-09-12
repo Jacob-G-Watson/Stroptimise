@@ -2,11 +2,20 @@ import { useState } from "react";
 import { patchPiece, ApiError } from "../services/api";
 import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
+import type { Piece } from "../types/api";
 
-function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/api/pieces" }) {
+interface Props {
+	piece: Piece;
+	onSaved: (piece: Piece) => void;
+	onCancel: () => void;
+	onError?: (msg: string) => void;
+	patchPathPrefix?: string;
+}
+
+function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/api/pieces" }: Props) {
 	const [name, setName] = useState(piece.name || "");
-	const [width, setWidth] = useState(piece.width || "");
-	const [height, setHeight] = useState(piece.height || "");
+	const [width, setWidth] = useState<string | number>(piece.width || "");
+	const [height, setHeight] = useState<string | number>(piece.height || "");
 	const [polygonText, setPolygonText] = useState(piece.polygon ? JSON.stringify(piece.polygon) : "");
 	const [saving, setSaving] = useState(false);
 
@@ -14,15 +23,15 @@ function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/ap
 		setSaving(true);
 		if (onError) onError("");
 		try {
-			const body = {
+			const body: Record<string, unknown> = {
 				name,
 				width: width || undefined,
 				height: height || undefined,
 				polygon: polygonText ? JSON.parse(polygonText) : undefined,
 			};
-			const updated = await patchPiece(piece.id, body, patchPathPrefix);
+			const updated = await patchPiece<Piece>(piece.id, body, patchPathPrefix);
 			if (onSaved) onSaved(updated);
-		} catch (err) {
+		} catch (err: any) {
 			const msg = err instanceof ApiError ? err.serverMessage : err.message;
 			if (onError) onError(msg || "Save failed");
 			notify({ type: "error", message: msg });

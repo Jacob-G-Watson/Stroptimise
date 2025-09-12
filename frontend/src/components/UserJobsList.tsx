@@ -2,9 +2,15 @@ import React, { useEffect, useState } from "react";
 import { getJobsForUser, createJob, ApiError } from "../services/api";
 import { notify } from "../services/notify";
 import { PrimaryButton } from "../utils/ThemeUtils";
+import type { User, Job } from "../types/api";
 
-function UserJobsList({ user, onSelectJob }) {
-	const [jobs, setJobs] = useState([]);
+interface Props {
+	user: User | null;
+	onSelectJob: (job: Job) => void;
+}
+
+function UserJobsList({ user, onSelectJob }: Props) {
+	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [adding, setAdding] = useState(false);
@@ -22,7 +28,7 @@ function UserJobsList({ user, onSelectJob }) {
 					setLoading(false);
 				}
 			})
-			.catch((err) => {
+			.catch((err: any) => {
 				if (err.name === "AbortError") return;
 				if (!cancelled) {
 					const msg = err instanceof ApiError ? err.serverMessage : err.message;
@@ -30,22 +36,22 @@ function UserJobsList({ user, onSelectJob }) {
 					setLoading(false);
 				}
 			});
-
 		return () => {
 			cancelled = true;
 			ac.abort();
 		};
 	}, [user]);
 
-	const handleAddJob = async (e) => {
+	const handleAddJob = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!user) return;
 		setAdding(true);
 		setError("");
 		try {
 			const newJob = await createJob({ name: jobName, user_id: user.id });
 			setJobs((prev) => [...prev, newJob]);
 			setJobName("");
-		} catch (err) {
+		} catch (err: any) {
 			const msg = err instanceof ApiError ? err.serverMessage : err.message;
 			setError(msg);
 			notify({ type: "error", message: msg });

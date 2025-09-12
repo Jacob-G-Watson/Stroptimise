@@ -1,4 +1,11 @@
-export function PrimaryButton({ children, className = "", ...props }) {
+import React from "react";
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+	children: React.ReactNode;
+	className?: string;
+}
+
+export function PrimaryButton({ children, className = "", ...props }: ButtonProps) {
 	return (
 		<button
 			className={`px-3 m-1 py-1 bg-stropt-green text-white rounded hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-stropt-green ${className}`}
@@ -9,7 +16,7 @@ export function PrimaryButton({ children, className = "", ...props }) {
 	);
 }
 
-export function DangerButton({ children, className = "", ...props }) {
+export function DangerButton({ children, className = "", ...props }: ButtonProps) {
 	return (
 		<button
 			className={`px-3 m-1 py-1 bg-stropt-brown text-white rounded hover:bg-black focus:outline-none focus:ring-2 focus:ring-stropt-brown ${className}`}
@@ -20,14 +27,13 @@ export function DangerButton({ children, className = "", ...props }) {
 	);
 }
 
-export function BackButton({ children = "Back", className = "", ...props }) {
+export function BackButton({ children = "Back", className = "", ...props }: ButtonProps) {
 	return (
 		<button
 			aria-label="Go back"
 			className={`px-3 py-1 flex items-center gap-1 border-2 border-stropt-green text-stropt-green font-semibold rounded hover:bg-stropt-green hover:text-white focus:outline-none focus:ring-2 focus:ring-stropt-green ${className}`}
 			{...props}
 		>
-			{/* Left Arrow Icon */}
 			<svg
 				width="14"
 				height="14"

@@ -1,9 +1,12 @@
-export function notify({ type = "info", message = "" } = {}) {
-	// dispatch a simple CustomEvent - NotificationCenter will listen
+export interface NotifyOptions {
+	type?: "info" | "error";
+	message?: string;
+}
+
+export function notify({ type = "info", message = "" }: NotifyOptions = {}): void {
 	try {
 		window.dispatchEvent(new CustomEvent("app:notify", { detail: { type, message } }));
 	} catch (e) {
-		// fallback: console
 		console[type === "error" ? "error" : "log"](message);
 	}
 }

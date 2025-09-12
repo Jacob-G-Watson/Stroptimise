@@ -1,34 +1,33 @@
 import { useState, useEffect, useContext } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
-import {
-	addPieceToCabinet as addPieceToCabinet,
-	getCabinet,
-	getCabinetPieces,
-	deletePiece,
-	ApiError,
-} from "../services/api";
+import { addPieceToCabinet, getCabinet, getCabinetPieces, deletePiece, ApiError } from "../services/api";
 import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 import PieceEditor from "./PieceEditor";
+import type { Cabinet, Piece } from "../types/api";
 
-function CabinetDetails({ cabinet: cabinetProp }) {
+interface Props {
+	cabinet: Cabinet | null;
+}
+
+function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const params = useParams();
 	const location = useLocation();
 	const { cabinet: contextCabinet } = useContext(SelectionContext);
 	const cabinetIdFromParams = params.cabinetId;
-	const cabinetFromState = location?.state?.cabinet;
-	const [cabinet, setCabinet] = useState(cabinetProp || cabinetFromState || contextCabinet || null);
-	const [pieces, setPieces] = useState([]);
-	const [editingPiece, setEditingPiece] = useState(null);
+	const cabinetFromState = (location as any)?.state?.cabinet as Cabinet | undefined;
+	const [cabinet, setCabinet] = useState<Cabinet | null>(cabinetProp || cabinetFromState || contextCabinet || null);
+	const [pieces, setPieces] = useState<Piece[]>([]);
+	const [editingPiece, setEditingPiece] = useState<Piece | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [pieceName, setPieceName] = useState("");
 	const [pieceWidth, setPieceWidth] = useState("");
 	const [pieceHeight, setPieceHeight] = useState("");
-	const [polygonText, setPolygonText] = useState(""); // JSON [[x,y],...]
+	const [polygonText, setPolygonText] = useState("");
 	const [adding, setAdding] = useState(false);
-	const [deletingIds, setDeletingIds] = useState(new Set());
+	const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
 	useEffect(() => {
 		let cancelled = false;
@@ -38,11 +37,10 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 					const c = await getCabinet(cabinetIdFromParams);
 					if (!cancelled) setCabinet(c);
 				}
-			} catch (e) {
+			} catch {
 				/* ignore */
 			}
 		})();
-
 		if (!cabinet?.id) return;
 		setLoading(true);
 		getCabinetPieces(cabinet.id)
@@ -50,22 +48,23 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 				setPieces(Array.isArray(data) ? data : []);
 				setLoading(false);
 			})
-			.catch((err) => {
+			.catch(() => {
 				setError("Failed to fetch pieces");
 				setLoading(false);
 			});
 	}, [cabinet, cabinetIdFromParams]);
 
-	const handleAddPiece = async (e) => {
+	const handleAddPiece = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!cabinet) return;
 		setAdding(true);
 		setError("");
 		try {
 			await tryAddViaApiResetPiece();
-		} catch (err) {
+		} catch (err: any) {
 			if (err instanceof ApiError) {
-				setError(err.serverMessage);
-				notify({ type: "error", message: err.serverMessage });
+				setError(err.serverMessage || "Error");
+				notify({ type: "error", message: err.serverMessage || "Error" });
 			} else {
 				throw err;
 			}
@@ -73,12 +72,14 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 			setAdding(false);
 		}
 	};
+
 	const tryAddViaApiResetPiece = async () => {
+		if (!cabinet) return;
 		const newPiece = await addPieceToCabinet(cabinet.id, {
 			name: pieceName,
 			width: pieceWidth || undefined,
 			height: pieceHeight || undefined,
-			polygon: polygonText ? JSON.parse(polygonText) : undefined,
+			polygon: polygonText ? (JSON.parse(polygonText) as number[][]) : undefined,
 		});
 		setPieces((prev) => [...prev, newPiece]);
 		setPieceName("");
@@ -87,7 +88,7 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		setPolygonText("");
 	};
 
-	const handleDeletePiece = async (id) => {
+	const handleDeletePiece = async (id: string) => {
 		if (!id) return;
 		if (!window.confirm("Delete this piece? This cannot be undone.")) return;
 		setError("");
@@ -95,10 +96,10 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		try {
 			await deletePiece(id);
 			setPieces((prev) => prev.filter((p) => p.id !== id));
-		} catch (err) {
+		} catch (err: any) {
 			if (err instanceof ApiError) {
-				setError(err.serverMessage);
-				notify({ type: "error", message: err.serverMessage });
+				setError(err.serverMessage || "Error");
+				notify({ type: "error", message: err.serverMessage || "Error" });
 			} else {
 				throw err;
 			}
@@ -111,82 +112,17 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		}
 	};
 
-	const handleEditPiece = (piece) => {
+	const handleEditPiece = (piece: Piece) => {
 		setError("");
 		setEditingPiece(piece);
 	};
 
-	const renderPiecesList = () => {
-		return (
-			<div className="">
-				<h3 className="font-semibold">Pieces</h3>
-				<ul className="list-disc pl-6 min-w-[30%] max-w-fit">
-					{pieces.map((piece) => (
-						<li key={piece.id} className="flex items-center gap-4 w-full">
-							{editingPiece && editingPiece.id === piece.id
-								? renderPieceEditor(editingPiece, setError)
-								: renderPieceItem(piece, handleEditPiece, handleDeletePiece, deletingIds)}
-						</li>
-					))}
-				</ul>
-			</div>
-		);
-	};
-
-	const renderAddPieceForm = () => {
-		return (
-			<form
-				onSubmit={handleAddPiece}
-				className={`mb-4 flex gap-2 items-center w-max max-w-[90vw] border p-2 rounded`}
-			>
-				<div className="flex-shrink-0 w-48 flex flex-col gap-2">
-					<input
-						type="text"
-						placeholder="Piece name"
-						value={pieceName}
-						onChange={(e) => setPieceName(e.target.value)}
-						className="border px-2 py-1 rounded text-sm w-full"
-						required
-					/>
-					<div className="flex gap-2">
-						<input
-							type="number"
-							placeholder="Width"
-							value={pieceWidth}
-							onChange={(e) => setPieceWidth(e.target.value)}
-							className="border px-2 py-1 rounded text-sm w-1/2"
-						/>
-						<input
-							type="number"
-							placeholder="Height"
-							value={pieceHeight}
-							onChange={(e) => setPieceHeight(e.target.value)}
-							className="border px-2 py-1 rounded text-sm w-1/2"
-						/>
-					</div>
-				</div>
-				<div className="">
-					<textarea
-						placeholder="Polygon points JSON e.g. [[0,0],[300,0],[300,50],[50,50],[50,200],[0,200]]"
-						value={polygonText}
-						onChange={(e) => setPolygonText(e.target.value)}
-						className="border px-2 py-1 my-1 rounded text-sm "
-					/>
-					<div className="flex-shrink-0">
-						<PrimaryButton
-							type="submit"
-							disabled={adding}
-							className="whitespace-nowrap px-3 py-1 my-1 text-sm"
-						>
-							{adding ? "Adding..." : "Add Piece"}
-						</PrimaryButton>
-					</div>
-				</div>
-			</form>
-		);
-	};
-
-	const renderPieceItem = (piece, handleEditPiece, handleDeletePiece, deletingIds) => {
+	const renderPieceItem = (
+		piece: Piece,
+		handleEditPiece: (p: Piece) => void,
+		handleDeletePiece: (id: string) => void,
+		deletingIds: Set<string>
+	) => {
 		return (
 			<>
 				<span className="flex-1 break-all">
@@ -205,12 +141,11 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 		);
 	};
 
-	const renderPieceEditor = (editingPiece, setError) => {
-		const handleSavedPiece = (updated) => {
+	const renderPieceEditor = (editingPiece: Piece, setError: (msg: string) => void) => {
+		const handleSavedPiece = (updated: Piece) => {
 			setPieces((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
 			setEditingPiece(null);
 		};
-
 		return (
 			<div className="w-full">
 				<PieceEditor
@@ -223,6 +158,68 @@ function CabinetDetails({ cabinet: cabinetProp }) {
 			</div>
 		);
 	};
+
+	const renderPiecesList = () => (
+		<div className="">
+			<h3 className="font-semibold">Pieces</h3>
+			<ul className="list-disc pl-6 min-w-[30%] max-w-fit">
+				{pieces.map((piece) => (
+					<li key={piece.id} className="flex items-center gap-4 w-full">
+						{editingPiece && editingPiece.id === piece.id
+							? renderPieceEditor(editingPiece, setError)
+							: renderPieceItem(piece, handleEditPiece, handleDeletePiece, deletingIds)}
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+
+	const renderAddPieceForm = () => (
+		<form
+			onSubmit={handleAddPiece}
+			className={`mb-4 flex gap-2 items-center w-max max-w-[90vw] border p-2 rounded`}
+		>
+			<div className="flex-shrink-0 w-48 flex flex-col gap-2">
+				<input
+					type="text"
+					placeholder="Piece name"
+					value={pieceName}
+					onChange={(e) => setPieceName(e.target.value)}
+					className="border px-2 py-1 rounded text-sm w-full"
+					required
+				/>
+				<div className="flex gap-2">
+					<input
+						type="number"
+						placeholder="Width"
+						value={pieceWidth}
+						onChange={(e) => setPieceWidth(e.target.value)}
+						className="border px-2 py-1 rounded text-sm w-1/2"
+					/>
+					<input
+						type="number"
+						placeholder="Height"
+						value={pieceHeight}
+						onChange={(e) => setPieceHeight(e.target.value)}
+						className="border px-2 py-1 rounded text-sm w-1/2"
+					/>
+				</div>
+			</div>
+			<div className="">
+				<textarea
+					placeholder="Polygon points JSON e.g. [[0,0],[300,0],[300,50],[50,50],[50,200],[0,200]]"
+					value={polygonText}
+					onChange={(e) => setPolygonText(e.target.value)}
+					className="border px-2 py-1 my-1 rounded text-sm "
+				/>
+				<div className="flex-shrink-0">
+					<PrimaryButton type="submit" disabled={adding} className="whitespace-nowrap px-3 py-1 my-1 text-sm">
+						{adding ? "Adding..." : "Add Piece"}
+					</PrimaryButton>
+				</div>
+			</div>
+		</form>
+	);
 
 	return (
 		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">

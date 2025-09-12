@@ -1,12 +1,18 @@
 // Small collection of layout helper functions used by the SVG viewer
 
-export function centroid(pts) {
+export interface Point {
+	x: number;
+	y: number;
+}
+export type PointTuple = [number, number];
+
+export function centroid(pts: PointTuple[] | undefined | null): Point {
 	if (!pts || pts.length < 3) {
-		// fallback to average
-		const n = pts?.length || 0;
+		const arr = pts ?? [];
+		const n = arr.length;
 		if (!n) return { x: 0, y: 0 };
-		const sx = pts.reduce((a, [x]) => a + x, 0);
-		const sy = pts.reduce((a, [, y]) => a + y, 0);
+		const sx = arr.reduce((a, [x]) => a + x, 0);
+		const sy = arr.reduce((a, [, y]) => a + y, 0);
 		return { x: sx / n, y: sy / n };
 	}
 	let a = 0,
@@ -22,7 +28,6 @@ export function centroid(pts) {
 	}
 	a *= 0.5;
 	if (Math.abs(a) < 1e-6) {
-		// degenerate; average
 		const n = pts.length;
 		const sx = pts.reduce((s, [x]) => s + x, 0);
 		const sy = pts.reduce((s, [, y]) => s + y, 0);

@@ -2,8 +2,13 @@ import React, { useState } from "react";
 import { PrimaryButton } from "../utils/ThemeUtils";
 import { authLogin, authRegister, bootstrapRefresh, getCurrentUser, ApiError } from "../services/api";
 import { notify } from "../services/notify";
+import type { User } from "../types/api";
 
-function UserLogin({ onLogin }) {
+interface Props {
+	onLogin: (user: User) => void;
+}
+
+function UserLogin({ onLogin }: Props) {
 	const [email, setEmail] = useState("");
 	const [displayName, setDisplayName] = useState("");
 	const [password, setPassword] = useState("");
@@ -11,23 +16,22 @@ function UserLogin({ onLogin }) {
 	const [error, setError] = useState("");
 	const [isSignup, setIsSignup] = useState(false);
 
-	async function doLogin(e, p) {
+	async function doLogin(e: string, p: string) {
 		try {
 			const data = await authLogin(e, p);
-			window.__access_token = data.access_token; // {access_token, token_type}
-			// ask backend to issue refresh cookie
+			window.__access_token = data.access_token;
 			await bootstrapRefresh(data.access_token).catch(() => null);
 			const u = await getCurrentUser();
 			if (u) onLogin(u);
 			return true;
-		} catch (err) {
+		} catch (err: any) {
 			const msg = err instanceof ApiError ? err.serverMessage : err.message;
 			notify({ type: "error", message: msg || "Login failed" });
 			return false;
 		}
 	}
 
-	async function handleSubmit(e) {
+	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		setError("");
 		if (isSignup) {
@@ -41,10 +45,9 @@ function UserLogin({ onLogin }) {
 			}
 			try {
 				await authRegister({ email, password, name: displayName || email });
-				// auto-login after register
 				const loginOk = await doLogin(email, password);
 				if (!loginOk) setError("Registered but login failed");
-			} catch (err) {
+			} catch (err: any) {
 				const msg = err instanceof ApiError ? err.serverMessage : err.message;
 				setError(msg || "Signup failed");
 			}

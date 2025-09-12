@@ -6,27 +6,20 @@ export default function Breadcrumbs() {
 	const { pathname } = useLocation();
 	const { job, cabinet } = React.useContext(SelectionContext);
 	if (!pathname.startsWith("/jobs") || pathname === "/jobs") return null;
-	const parts = pathname.split("/").filter(Boolean); // jobs, jobId, optional...
-	if (parts.length < 2) return null; // need at least /jobs/:jobId
-
+	const parts = pathname.split("/").filter(Boolean);
+	if (parts.length < 2) return null;
 	const jobId = parts[1];
-
-	const truncate = (txt, n = 22) => (txt && txt.length > n ? txt.slice(0, n - 1) + "…" : txt);
-
-	// Include root Jobs crumb (navbar Jobs link removed to avoid duplication)
+	const truncate = (txt?: string | null, n = 22) => (txt && txt.length > n ? txt.slice(0, n - 1) + "…" : txt);
 	const crumbs = [
 		{ label: "Jobs", to: "/jobs" },
 		{ label: truncate(job?.name || jobId), to: `/jobs/${jobId}` },
 	];
-
 	if (parts[2] === "layout") {
 		crumbs.push({ label: "Layout", to: `/jobs/${jobId}/layout` });
 	} else if (parts[2] === "cabinet" && parts[3]) {
 		crumbs.push({ label: truncate(cabinet?.name || parts[3]), to: `/jobs/${jobId}/cabinet/${parts[3]}` });
 	}
-
 	const lastIndex = crumbs.length - 1;
-
 	return (
 		<nav aria-label="Breadcrumb">
 			<ol className="flex items-center gap-1 text-xs md:text-sm bg-white/80 px-2 py-1 rounded border border-stropt-green/30 shadow-sm">
@@ -36,7 +29,6 @@ export default function Breadcrumbs() {
 						<li key={c.to} className="flex items-center">
 							{i > 0 && (
 								<span className="text-stropt-brown/40 mx-1" aria-hidden="true">
-									{/* Chevron icon */}
 									<svg
 										width="12"
 										height="12"
@@ -53,8 +45,12 @@ export default function Breadcrumbs() {
 								</span>
 							)}
 							{isLast ? (
-								<span className="font-semibold text-stropt-green" aria-current="page" title={c.label}>
-									{c.label}
+								<span
+									className="font-semibold text-stropt-green"
+									aria-current="page"
+									title={c.label || undefined}
+								>
+									{c.label || ""}
 								</span>
 							) : (
 								<NavLink
@@ -64,9 +60,9 @@ export default function Breadcrumbs() {
 											isActive ? "text-stropt-green" : "text-stropt-brown"
 										}`
 									}
-									title={c.label}
+									title={c.label || undefined}
 								>
-									{c.label}
+									{c.label || ""}
 								</NavLink>
 							)}
 						</li>

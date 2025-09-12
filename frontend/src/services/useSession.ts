@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser, refreshToken } from "./api";
+import type { User } from "../types/api";
 
 // Session hook with silent refresh using refresh cookie.
 export function useSession() {
-	const [user, setUser] = useState(null);
+	const [user, setUser] = useState<User | null>(null);
 	const [restoring, setRestoring] = useState(true);
 	const navigate = useNavigate();
-	const timerRef = useRef(null);
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const startedRef = useRef(false);
 
 	useEffect(() => {
@@ -16,7 +17,6 @@ export function useSession() {
 		let cancelled = false;
 		(async () => {
 			try {
-				// Attempt refresh to obtain access token from cookie
 				const data = await refreshToken().catch(() => null);
 				if (data) {
 					window.__access_token = data.access_token;
@@ -27,8 +27,8 @@ export function useSession() {
 							setUser(me);
 							navigate("/jobs", { replace: true });
 						}
-					} catch (e) {
-						// ignore
+					} catch {
+						/* ignore */
 					}
 				}
 			} finally {
@@ -41,7 +41,7 @@ export function useSession() {
 		};
 	}, [navigate]);
 
-	function schedule(expiresIn) {
+	function schedule(expiresIn?: number) {
 		if (!expiresIn) return; // seconds
 		const delay = Math.max(5000, (expiresIn - 60) * 1000);
 		if (timerRef.current) clearTimeout(timerRef.current);

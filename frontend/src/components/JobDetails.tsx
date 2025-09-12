@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
-import { getJob, getJobCabinets, addCabinetToJob, deleteCabinet, ApiError } from "../services/api";
-import { notify } from "../services/notify";
-import CabinetDetails from "./CabinetDetails";
-import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
+import {
+	getJob,
+	getJobCabinets,
+	addCabinetToJob,
+	deleteCabinet,
+	addUserCabinet,
+	getUserCabinets,
+	deleteUserCabinet,
+} from "../services/api";
+import CabinetCollection from "./CabinetCollection";
+import useEntityCollection from "../hooks/useEntityCollection";
+import { PrimaryButton } from "../utils/ThemeUtils";
 import type { Job, CabinetBase } from "../types/api";
 
 interface Props {
@@ -18,16 +26,27 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 	const { job: contextJob, setJob: setContextJob } = React.useContext(SelectionContext);
 	const jobIdFromParams = params.jobId!;
 	const [job, setJob] = useState<Job | null>(jobProp || contextJob || null);
-	const [cabinets, setCabinets] = useState<CabinetBase[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [adding, setAdding] = useState(false);
-	const [cabinetName, setCabinetName] = useState("");
-	const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
 	useEffect(() => {
 		let cancelled = false;
 		const ac = new AbortController();
+		fetchJobIfNotProvided(job, jobIdFromParams, ac, cancelled, setJob, setContextJob);
+
+		return () => {
+			cancelled = true;
+			ac.abort();
+		};
+		// keep dependency on job so fetchJobIfNotProvided runs when it changes
+	}, [job, jobIdFromParams, setContextJob]);
+
+	function fetchJobIfNotProvided(
+		job: Job | null,
+		jobIdFromParams: string,
+		ac: AbortController,
+		cancelled: boolean,
+		setJob: React.Dispatch<React.SetStateAction<Job | null>>,
+		setContextJob: (j: Job | null) => void
+	) {
 		(async () => {
 			try {
 				if (!job && jobIdFromParams) {
@@ -45,133 +64,95 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 				if (e.name === "AbortError") return;
 			}
 		})();
+	}
 
-		if (!job?.id)
-			return () => {
-				cancelled = true;
-				ac.abort();
-			};
+	// useEntityCollection will handle loading/add/delete for job and user cabinets
+	// we'll wire them below once job is available
 
-		setLoading(true);
-		getJobCabinets(job.id, { signal: ac.signal })
-			.then((data) => {
-				if (!cancelled) {
-					setCabinets(Array.isArray(data) ? data : []);
-					setLoading(false);
-				}
-			})
-			.catch((err: any) => {
-				if (err.name === "AbortError") return;
-				if (!cancelled) {
-					const msg =
-						err instanceof ApiError
-							? err.serverMessage || "Failed to fetch cabinets"
-							: "Failed to fetch cabinets";
-					setError(msg);
-					setLoading(false);
-				}
-			});
-		return () => {
-			cancelled = true;
-			ac.abort();
-		};
-	}, [job, jobIdFromParams, setContextJob]);
-
-	const toggleExpanded = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
-
-	const handleAddCabinet = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!job) return;
-		setAdding(true);
-		setError("");
-		try {
-			const newCabinet = await addCabinetToJob(job.id, { name: cabinetName });
-			setCabinets((prev) => [...prev, newCabinet]);
-			setCabinetName("");
-		} catch (err: any) {
-			const msg = err instanceof ApiError ? err.serverMessage : err.message;
-			setError(msg);
-			notify({ type: "error", message: msg });
-		} finally {
-			setAdding(false);
-		}
-	};
-
-	if (!job) return null;
-
-	const cabinetList = (
-		<ul className="pl-0">
-			{cabinets.map((cabinet) => (
-				<li key={cabinet.id} className="mb-2 border rounded">
-					<div className="flex items-center justify-between p-2">
-						<div className="flex items-center gap-2">
-							<button
-								aria-label={expanded[cabinet.id] ? "Collapse" : "Expand"}
-								onClick={() => toggleExpanded(cabinet.id)}
-								className="text-xl w-6 h-6 flex items-center justify-center"
-							>
-								{expanded[cabinet.id] ? "▾" : "▸"}
-							</button>
-							<span className="font-medium text-stropt-brown">{cabinet.name || cabinet.id}</span>
-						</div>
-						<div>
-							<PrimaryButton onClick={() => onEditCabinet(cabinet)}>Edit</PrimaryButton>
-							<DangerButton
-								onClick={async () => {
-									if (!window.confirm("Delete this cabinet and its pieces?")) return;
-									try {
-										await deleteCabinet(cabinet.id);
-										setCabinets((prev) => prev.filter((c) => c.id !== cabinet.id));
-									} catch (err: any) {
-										const msg = err instanceof ApiError ? err.serverMessage : err.message;
-										setError(msg || "Delete failed");
-										notify({ type: "error", message: msg });
-									}
-								}}
-							>
-								Delete
-							</DangerButton>
-						</div>
-					</div>
-					{expanded[cabinet.id] && <CabinetDetails cabinet={cabinet} />}
-				</li>
-			))}
-		</ul>
+	// create per-collection hooks when job becomes available
+	const jobCabinetCollection = useEntityCollection(
+		(opts?: { signal?: AbortSignal }) => {
+			if (!job) return Promise.resolve([]);
+			return getJobCabinets(job.id, { signal: opts?.signal });
+		},
+		(p: { name: string }) => {
+			if (!job) return Promise.reject(new Error("No job"));
+			return addCabinetToJob(job.id, p);
+		},
+		(id: string) => deleteCabinet(id).then(() => undefined),
+		// refetch when job id changes
+		[job?.id]
 	);
 
-	const cabinetForm = (
-		<form onSubmit={handleAddCabinet} className="mb-4 flex gap-2 items-center">
-			<input
-				type="text"
-				placeholder="Cabinet name"
-				value={cabinetName}
-				onChange={(e) => setCabinetName(e.target.value)}
-				className="border px-2 py-1 rounded"
-				required
-			/>
-			<PrimaryButton type="submit" className="" disabled={adding}>
-				{adding ? "Adding..." : "Add Cabinet"}
-			</PrimaryButton>
-		</form>
+	const userCabinetCollection = useEntityCollection(
+		(opts?: { signal?: AbortSignal }) => {
+			if (!job) return Promise.resolve([]);
+			return getUserCabinets(job.user_id, { signal: opts?.signal });
+		},
+		(p: { name: string }) => {
+			if (!job) return Promise.reject(new Error("No job"));
+			return addUserCabinet(job.user_id, p);
+		},
+		(id: string) => deleteUserCabinet(id).then(() => undefined),
+		[job?.user_id]
 	);
 
-	return (
+	const jobCabinetList = (
+		<CabinetCollection
+			title="Cabinets"
+			allowExpand
+			onEdit={onEditCabinet}
+			cabinetCollection={{
+				items: jobCabinetCollection.items,
+				loading: jobCabinetCollection.loading,
+				error: jobCabinetCollection.error,
+				isAdding: jobCabinetCollection.isAdding,
+				add: jobCabinetCollection.add,
+				remove: jobCabinetCollection.remove,
+				setError: jobCabinetCollection.setError,
+			}}
+			addLabel="Add Cabinet"
+		/>
+	);
+
+	const userCabinetList = (
+		<CabinetCollection
+			title="Your Library"
+			allowExpand={false}
+			cabinetCollection={{
+				items: userCabinetCollection.items,
+				loading: userCabinetCollection.loading,
+				error: userCabinetCollection.error,
+				isAdding: userCabinetCollection.isAdding,
+				add: userCabinetCollection.add,
+				remove: userCabinetCollection.remove,
+				setError: userCabinetCollection.setError,
+			}}
+			addLabel="Add User Cabinet"
+		/>
+	);
+
+	// no job handling could be improved
+	return !job ? null : (
 		<div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6 px-4 items-start">
 			<div className="hidden lg:block" />
 			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full mx-auto min-w-0 overflow-hidden">
 				<div className="flex items-center justify-between mb-3 gap-2">
-					<h2 className="text-xl font-bold text-stropt-brown truncate">Current Job: {job.name || job.id}</h2>
+					<h2 className="text-xl font-bold text-stropt-brown truncate">Job: {job.name || job.id}</h2>
 					<PrimaryButton onClick={() => handleViewLayout()}>View Layout</PrimaryButton>
 				</div>
-				{loading && <div>Loading cabinets...</div>}
-				{error && <div className="text-red-500">{error}</div>}
-				<div className="min-w-0">
-					<h3 className="font-semibold">Cabinets</h3>
-					{cabinetList}
-					{cabinetForm}
-				</div>
+				{jobCabinetCollection.loading && <div>Loading cabinets...</div>}
+				{jobCabinetCollection.error && <div className="text-red-500">{jobCabinetCollection.error}</div>}
+				<div className="min-w-0">{jobCabinetList}</div>
 			</div>
-			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full min-w-0 lg:justify-self-end overflow-hidden" />
+			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full min-w-0 lg:justify-self-end overflow-hidden">
+				<div className="flex items-center justify-between mb-3 gap-2">
+					<h3 className="font-bold text-stropt-brown truncate">User Cabinets</h3>
+				</div>
+				{userCabinetCollection.loading && <div>Loading cabinets...</div>}
+				{userCabinetCollection.error && <div className="text-red-500">{userCabinetCollection.error}</div>}
+				<div className="min-w-0">{userCabinetList}</div>
+			</div>
 		</div>
 	);
 }

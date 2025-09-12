@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
-import { authFetch } from "../services/authFetch";
+import { getJob, getJobCabinets, addCabinetToJob, deleteCabinet, ApiError } from "../services/api";
+import { notify } from "../utils/notify";
 import CabinetDetails from "./CabinetDetails";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 
@@ -24,13 +25,14 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 		(async () => {
 			try {
 				if (!job && jobIdFromParams) {
-					const res = await authFetch(`/api/jobs/${jobIdFromParams}`, { signal: ac.signal });
-					if (res.ok) {
-						const j = await res.json();
+					try {
+						const j = await getJob(jobIdFromParams, { signal: ac.signal });
 						if (!cancelled) {
 							setJob(j);
 							if (setContextJob) setContextJob(j);
 						}
+					} catch (e) {
+						if (e.name === "AbortError") return;
 					}
 				}
 			} catch (e) {
@@ -45,8 +47,7 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 			};
 
 		setLoading(true);
-		authFetch(`/api/jobs/${job.id}/cabinets`, { signal: ac.signal })
-			.then((res) => res.json())
+		getJobCabinets(job.id, { signal: ac.signal })
 			.then((data) => {
 				if (!cancelled) {
 					setCabinets(Array.isArray(data) ? data : []);
@@ -56,7 +57,8 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 			.catch((err) => {
 				if (err.name === "AbortError") return;
 				if (!cancelled) {
-					setError("Failed to fetch cabinets");
+					const msg = err instanceof ApiError ? err.serverMessage : "Failed to fetch cabinets";
+					setError(msg);
 					setLoading(false);
 				}
 			});
@@ -74,17 +76,13 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 		setAdding(true);
 		setError("");
 		try {
-			const res = await authFetch(`/api/jobs/${job.id}/cabinets`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: cabinetName }),
-			});
-			if (!res.ok) throw new Error("Failed to add cabinet");
-			const newCabinet = await res.json();
+			const newCabinet = await addCabinetToJob(job.id, { name: cabinetName });
 			setCabinets((prev) => [...prev, newCabinet]);
 			setCabinetName("");
 		} catch (err) {
-			setError(err.message);
+			const msg = err instanceof ApiError ? err.serverMessage : err.message;
+			setError(msg);
+			notify({ type: "error", message: msg });
 		} finally {
 			setAdding(false);
 		}
@@ -123,13 +121,12 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }) {
 										onClick={async () => {
 											if (!window.confirm("Delete this cabinet and its pieces?")) return;
 											try {
-												const res = await authFetch(`/api/cabinets/${cabinet.id}`, {
-													method: "DELETE",
-												});
-												if (!res.ok) throw new Error("Failed to delete cabinet");
+												await deleteCabinet(cabinet.id);
 												setCabinets((prev) => prev.filter((c) => c.id !== cabinet.id));
 											} catch (err) {
-												setError(err.message || "Delete failed");
+												const msg = err instanceof ApiError ? err.serverMessage : err.message;
+												setError(msg || "Delete failed");
+												notify({ type: "error", message: msg });
 											}
 										}}
 									>

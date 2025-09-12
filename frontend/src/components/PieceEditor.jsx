@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { authFetch } from "../services/authFetch";
+import { patchPiece, ApiError } from "../services/api";
+import { notify } from "../utils/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 
 function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/api/pieces" }) {
@@ -19,16 +20,12 @@ function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/ap
 				height: height || undefined,
 				polygon: polygonText ? JSON.parse(polygonText) : undefined,
 			};
-			const res = await authFetch(`${patchPathPrefix}/${piece.id}`, {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-			});
-			if (!res.ok) throw new Error("Failed to save piece");
-			const updated = await res.json();
+			const updated = await patchPiece(piece.id, body, patchPathPrefix);
 			if (onSaved) onSaved(updated);
 		} catch (err) {
-			if (onError) onError(err.message || "Save failed");
+			const msg = err instanceof ApiError ? err.serverMessage : err.message;
+			if (onError) onError(msg || "Save failed");
+			notify({ type: "error", message: msg });
 		} finally {
 			setSaving(false);
 		}

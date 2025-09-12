@@ -66,3 +66,85 @@ export async function deletePiece(pieceId) {
 	const res = await authFetch(`/api/pieces/${pieceId}`, { method: "DELETE" });
 	return await handleResponse(res);
 }
+
+// Jobs
+export async function getJobsForUser(userId, { signal } = {}) {
+	const res = await authFetch(`/api/jobs?user_id=${userId}`, { signal });
+	return await handleResponse(res);
+}
+
+export async function createJob({ name, user_id }) {
+	const res = await authFetch(`/api/jobs`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name, user_id }),
+	});
+	return await handleResponse(res);
+}
+
+export async function getJob(jobId, { signal } = {}) {
+	const res = await authFetch(`/api/jobs/${jobId}`, { signal });
+	return await handleResponse(res);
+}
+
+// Cabinets
+export async function getJobCabinets(jobId, { signal } = {}) {
+	const res = await authFetch(`/api/jobs/${jobId}/cabinets`, { signal });
+	return await handleResponse(res);
+}
+
+export async function addCabinetToJob(jobId, { name }) {
+	const res = await authFetch(`/api/jobs/${jobId}/cabinets`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
+	});
+	return await handleResponse(res);
+}
+
+export async function deleteCabinet(cabinetId) {
+	const res = await authFetch(`/api/cabinets/${cabinetId}`, { method: "DELETE" });
+	return await handleResponse(res);
+}
+
+// Layout / exports - some endpoints return binary blobs; return raw Response so callers can handle blob()
+export async function computeJobLayout(jobId, body = {}) {
+	const res = await authFetch(`/api/jobs/${jobId}/layout`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	return await handleResponse(res);
+}
+
+export async function exportLayoutPdf(jobId, body = {}) {
+	return await authFetch(`/api/jobs/${jobId}/layout/export/pdf`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+}
+
+export async function getCutsheetPdf(jobId) {
+	return await authFetch(`/api/jobs/${jobId}/cutsheet.pdf`);
+}
+
+export async function quickDownloadJobPath(jobId, path) {
+	return await authFetch(`/api/jobs/${jobId}/${path}`);
+}
+
+// Pieces
+export async function patchPiece(pieceId, body = {}, patchPathPrefix = "/api/pieces") {
+	const res = await authFetch(`${patchPathPrefix}/${pieceId}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	return await handleResponse(res);
+}
+
+// Current user
+export async function getCurrentUser() {
+	const res = await authFetch(`/api/users/me`);
+	return await handleResponse(res);
+}

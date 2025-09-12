@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { authFetch } from "../services/authFetch";
+import { getJobsForUser, createJob, ApiError } from "../services/api";
+import { notify } from "../utils/notify";
 import { PrimaryButton } from "../utils/ThemeUtils";
 
 function UserJobsList({ user, onSelectJob }) {
@@ -14,11 +15,7 @@ function UserJobsList({ user, onSelectJob }) {
 		let cancelled = false;
 		const ac = new AbortController();
 		setLoading(true);
-		authFetch(`/api/jobs?user_id=${user.id}`, { signal: ac.signal })
-			.then((res) => {
-				if (!res.ok) throw new Error("Failed to fetch jobs");
-				return res.json();
-			})
+		getJobsForUser(user.id, { signal: ac.signal })
 			.then((data) => {
 				if (!cancelled) {
 					setJobs(data);
@@ -28,7 +25,8 @@ function UserJobsList({ user, onSelectJob }) {
 			.catch((err) => {
 				if (err.name === "AbortError") return;
 				if (!cancelled) {
-					setError(err.message);
+					const msg = err instanceof ApiError ? err.serverMessage : err.message;
+					setError(msg);
 					setLoading(false);
 				}
 			});
@@ -44,17 +42,13 @@ function UserJobsList({ user, onSelectJob }) {
 		setAdding(true);
 		setError("");
 		try {
-			const res = await authFetch("/api/jobs", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: jobName, user_id: user.id }),
-			});
-			if (!res.ok) throw new Error("Failed to add job");
-			const newJob = await res.json();
+			const newJob = await createJob({ name: jobName, user_id: user.id });
 			setJobs((prev) => [...prev, newJob]);
 			setJobName("");
 		} catch (err) {
-			setError(err.message);
+			const msg = err instanceof ApiError ? err.serverMessage : err.message;
+			setError(msg);
+			notify({ type: "error", message: msg });
 		} finally {
 			setAdding(false);
 		}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authFetch } from "./authFetch";
+import { getCurrentUser, ApiError } from "./api";
 
 // Session hook with silent refresh using refresh cookie.
 export function useSession() {
@@ -22,13 +22,14 @@ export function useSession() {
 					const data = await r.json();
 					window.__access_token = data.access_token;
 					schedule(data.expires_in);
-					const meRes = await authFetch("/api/users/me");
-					if (meRes.ok) {
-						const me = await meRes.json();
+					try {
+						const me = await getCurrentUser();
 						if (!cancelled) {
 							setUser(me);
 							navigate("/jobs", { replace: true });
 						}
+					} catch (e) {
+						// ignore
 					}
 				}
 			} finally {

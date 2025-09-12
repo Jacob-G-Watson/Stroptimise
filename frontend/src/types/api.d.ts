@@ -19,11 +19,16 @@ export interface Job {
 	allow_rotation: boolean;
 }
 
-export interface Cabinet {
+export interface CabinetBase {
 	id: string;
 	name: string;
-	job_id: string;
+	// generic owner id (job_id or user_id)
+	owner_id: string;
 }
+
+export interface Cabinet extends CabinetBase {}
+
+export interface UserCabinet extends CabinetBase {}
 
 export interface PieceBase {
 	id: string;
@@ -32,17 +37,14 @@ export interface PieceBase {
 	height: number;
 	// Backend stores polygon as points_json; API returns `polygon` already parsed (inferred from usage)
 	polygon?: number[][] | null;
+	colour_id?: string | null;
+	// generic container id (may be a cabinet id or user_cabinet id depending on the piece)
+	container_id: string | null;
 }
 
-export interface Piece extends PieceBase {
-	cabinet_id: string;
-	colour_id?: string | null;
-}
+export interface Piece extends PieceBase {}
 
-export interface UserPiece extends PieceBase {
-	user_cabinet_id: string;
-	colour_id?: string | null;
-}
+export interface UserPiece extends PieceBase {}
 
 export interface LayoutRectPlacement {
 	piece_id: string;

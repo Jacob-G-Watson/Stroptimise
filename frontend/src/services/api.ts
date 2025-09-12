@@ -5,6 +5,7 @@ import type {
 	User,
 	Job,
 	Cabinet,
+	UserCabinet,
 	Piece,
 	UserPiece,
 	LayoutResult,
@@ -104,6 +105,49 @@ async function handleResponse<T>(res: Response): Promise<T> {
 	return (await res.text().catch(() => null)) as unknown as T;
 }
 
+function _normalizePieceObj<T extends any>(p: T): T {
+	if (!p || typeof p !== "object") return p;
+	if ((p as any).container_id === undefined)
+		(p as any).container_id = (p as any).cabinet_id || (p as any).user_cabinet_id || null;
+	return p;
+}
+
+function _normalizePiecesArray<T extends any>(arr: T[]): T[] {
+	if (!Array.isArray(arr)) return arr;
+	return arr.map(_normalizePieceObj);
+}
+
+function _normalizeCabinetObj<T extends any>(c: T): T {
+	if (!c || typeof c !== "object") return c;
+	// @ts-ignore
+	if ((c as any).owner_id === undefined) {
+		const jobId = (c as any).job_id;
+		const userId = (c as any).user_id;
+		if (jobId !== undefined) {
+			// @ts-ignore
+			c.owner_id = jobId;
+			// @ts-ignore
+			c.owner_type = "job";
+		} else if (userId !== undefined) {
+			// @ts-ignore
+			c.owner_id = userId;
+			// @ts-ignore
+			c.owner_type = "user";
+		} else {
+			// @ts-ignore
+			c.owner_id = null;
+			// @ts-ignore
+			c.owner_type = null;
+		}
+	}
+	return c;
+}
+
+function _normalizeCabinetsArray<T extends any>(arr: T[]): T[] {
+	if (!Array.isArray(arr)) return arr;
+	return arr.map(_normalizeCabinetObj);
+}
+
 export async function addPieceToCabinet(
 	cabinetId: string,
 	{
@@ -118,7 +162,8 @@ export async function addPieceToCabinet(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ name, width, height, polygon }),
 	});
-	return await handleResponse<Piece>(res);
+	const data = await handleResponse<Piece>(res);
+	return _normalizePieceObj(data);
 }
 
 export async function getCabinet(cabinetId: string): Promise<Cabinet> {
@@ -128,7 +173,8 @@ export async function getCabinet(cabinetId: string): Promise<Cabinet> {
 
 export async function getCabinetPieces(cabinetId: string): Promise<Piece[]> {
 	const res = await authFetch(`/api/cabinets/${cabinetId}/pieces`);
-	return await handleResponse<Piece[]>(res);
+	const data = await handleResponse<Piece[]>(res);
+	return _normalizePiecesArray(data);
 }
 
 export async function deletePiece(pieceId: string): Promise<null> {
@@ -151,12 +197,14 @@ export async function addPieceToUserCabinet(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ name, width, height, polygon }),
 	});
-	return await handleResponse<UserPiece>(res);
+	const data = await handleResponse<UserPiece>(res);
+	return _normalizePieceObj(data);
 }
 
 export async function getUserCabinetPieces(userCabinetId: string): Promise<UserPiece[]> {
 	const res = await authFetch(`/api/user_cabinets/${userCabinetId}/pieces`);
-	return await handleResponse<UserPiece[]>(res);
+	const data = await handleResponse<UserPiece[]>(res);
+	return _normalizePiecesArray(data);
 }
 
 export async function deleteUserPiece(pieceId: string): Promise<null> {
@@ -191,7 +239,8 @@ export async function getJob(jobId: string, { signal }: { signal?: AbortSignal }
 // Cabinets
 export async function getJobCabinets(jobId: string, { signal }: { signal?: AbortSignal } = {}): Promise<Cabinet[]> {
 	const res = await authFetch(`/api/jobs/${jobId}/cabinets`, { signal });
-	return await handleResponse<Cabinet[]>(res);
+	const data = await handleResponse<Cabinet[]>(res);
+	return _normalizeCabinetsArray(data);
 }
 
 export async function addCabinetToJob(jobId: string, { name }: { name: string }): Promise<Cabinet> {
@@ -200,7 +249,8 @@ export async function addCabinetToJob(jobId: string, { name }: { name: string })
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ name }),
 	});
-	return await handleResponse<Cabinet>(res);
+	const data = await handleResponse<Cabinet>(res);
+	return _normalizeCabinetObj(data);
 }
 
 export async function deleteCabinet(cabinetId: string): Promise<null> {
@@ -211,7 +261,8 @@ export async function deleteCabinet(cabinetId: string): Promise<null> {
 // User cabinets
 export async function getUserCabinets(userId: string, { signal }: { signal?: AbortSignal } = {}): Promise<Cabinet[]> {
 	const res = await authFetch(`/api/users/${userId}/cabinets`, { signal });
-	return await handleResponse<Cabinet[]>(res);
+	const data = await handleResponse<Cabinet[]>(res);
+	return _normalizeCabinetsArray(data);
 }
 
 export async function addUserCabinet(userId: string, { name }: { name: string }): Promise<Cabinet> {
@@ -220,7 +271,8 @@ export async function addUserCabinet(userId: string, { name }: { name: string })
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ name }),
 	});
-	return await handleResponse<Cabinet>(res);
+	const data = await handleResponse<Cabinet>(res);
+	return _normalizeCabinetObj(data);
 }
 
 export async function deleteUserCabinet(userCabinetId: string): Promise<null> {
@@ -265,7 +317,9 @@ export async function patchPiece<T = Piece>(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	return await handleResponse<T>(res);
+	const data = await handleResponse<T>(res);
+	// Try to normalize if this looks like a piece
+	return _normalizePieceObj(data as any) as T;
 }
 
 // Current user

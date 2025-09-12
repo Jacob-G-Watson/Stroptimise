@@ -5,7 +5,7 @@ import { addPieceToCabinet, getCabinet, getCabinetPieces, deletePiece, ApiError 
 import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 import PieceEditor from "./PieceEditor";
-import type { Cabinet, Piece } from "../types/api";
+import type { Cabinet, PieceBase } from "../types/api";
 
 interface Props {
 	cabinet: Cabinet | null;
@@ -18,8 +18,8 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const cabinetIdFromParams = params.cabinetId;
 	const cabinetFromState = (location as any)?.state?.cabinet as Cabinet | undefined;
 	const [cabinet, setCabinet] = useState<Cabinet | null>(cabinetProp || cabinetFromState || contextCabinet || null);
-	const [pieces, setPieces] = useState<Piece[]>([]);
-	const [editingPiece, setEditingPiece] = useState<Piece | null>(null);
+	const [pieces, setPieces] = useState<PieceBase[]>([]);
+	const [editingPiece, setEditingPiece] = useState<PieceBase | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [pieceName, setPieceName] = useState("");
@@ -112,14 +112,14 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 		}
 	};
 
-	const handleEditPiece = (piece: Piece) => {
+	const handleEditPiece = (piece: PieceBase) => {
 		setError("");
 		setEditingPiece(piece);
 	};
 
 	const renderPieceItem = (
-		piece: Piece,
-		handleEditPiece: (p: Piece) => void,
+		piece: PieceBase,
+		handleEditPiece: (p: PieceBase) => void,
 		handleDeletePiece: (id: string) => void,
 		deletingIds: Set<string>
 	) => {
@@ -141,8 +141,8 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 		);
 	};
 
-	const renderPieceEditor = (editingPiece: Piece, setError: (msg: string) => void) => {
-		const handleSavedPiece = (updated: Piece) => {
+	const renderPieceEditor = (editingPiece: PieceBase, setError: (msg: string) => void) => {
+		const handleSavedPiece = (updated: PieceBase) => {
 			setPieces((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
 			setEditingPiece(null);
 		};

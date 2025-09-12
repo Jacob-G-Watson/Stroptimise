@@ -2,13 +2,14 @@ import { useState } from "react";
 import { patchPiece, ApiError } from "../services/api";
 import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
-import type { Piece } from "../types/api";
+import type { PieceBase } from "../types/api";
 
 interface Props {
-	piece: Piece;
-	onSaved: (piece: Piece) => void;
+	piece: PieceBase;
+	onSaved: (piece: PieceBase) => void;
 	onCancel: () => void;
 	onError?: (msg: string) => void;
+	// caller should pass "/api/pieces" or "/api/user_pieces" depending on piece type
 	patchPathPrefix?: string;
 }
 
@@ -29,7 +30,8 @@ function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/ap
 				height: height || undefined,
 				polygon: polygonText ? JSON.parse(polygonText) : undefined,
 			};
-			const updated = await patchPiece<Piece>(piece.id, body, patchPathPrefix);
+			// patchPathPrefix controls whether we call /api/pieces or /api/user_pieces
+			const updated = await patchPiece(piece.id, body, patchPathPrefix);
 			if (onSaved) onSaved(updated);
 		} catch (err: any) {
 			const msg = err instanceof ApiError ? err.serverMessage : err.message;

@@ -81,7 +81,7 @@ function App() {
 									job={job}
 									onEditCabinet={(cab) => {
 										setCabinet(cab);
-										navigate(`/jobs/${job?.id || cab.job_id}/cabinet/${cab.id}`);
+										navigate(`/jobs/${job?.id || cab.owner_id}/cabinet/${cab.id}`);
 									}}
 									handleViewLayout={() => navigate(`/jobs/${job?.id}/layout`)}
 								/>

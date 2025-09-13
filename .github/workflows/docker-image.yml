@@ -56,8 +56,8 @@ jobs:
             - name: Build and push frontend image
               uses: docker/build-push-action@v5
               with:
-                  context: ./frontend
-                  file: Dockerfile
+                  context: .
+                  file: frontend/Dockerfile
                   push: true
                   tags: jclass/stroptimise-frontend:${{ github.sha }},jclass/stroptimise-frontend:latest
                   cache-from: type=gha

@@ -11,7 +11,7 @@ FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
 
 # Copy nginx config (used as a template) and install envsubst for runtime variable substitution
-COPY default.conf /etc/nginx/templates/default.conf.template
+COPY frontend/default.conf /etc/nginx/templates/default.conf.template
 RUN apk add --no-cache gettext
 
 # Expose the templated port (runtime will set FRONTEND_PORT)

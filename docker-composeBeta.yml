@@ -15,6 +15,9 @@ services:
     image: jclass/stroptimise-frontend:latest
     container_name: stroptimise_beta_frontend
     restart: unless-stopped
+    env_file:
+      # Load environment variables from a configurable env file (defaults to ./ .env).
+      - ${STROPTIMISE_ENV_FILE:-.env}
     ports:
       - "9061:9060"
 

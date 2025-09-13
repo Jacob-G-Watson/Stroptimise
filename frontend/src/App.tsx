@@ -81,7 +81,11 @@ function App() {
 									job={job}
 									onEditCabinet={(cab) => {
 										setCabinet(cab);
-										navigate(`/jobs/${job?.id || cab.owner_id}/cabinet/${cab.id}`);
+										if ((cab as any).owner_type === "user") {
+											navigate(`/user_cabinets/${cab.id}`);
+										} else {
+											navigate(`/jobs/${job?.id || cab.owner_id}/cabinet/${cab.id}`);
+										}
 									}}
 									handleViewLayout={() => navigate(`/jobs/${job?.id}/layout`)}
 								/>
@@ -89,6 +93,7 @@ function App() {
 						/>
 						<Route path="/jobs/:jobId/layout" element={<JobLayoutViewer job={job} />} />
 						<Route path="/jobs/:jobId/cabinet/:cabinetId" element={<CabinetDetails cabinet={cabinet} />} />
+						<Route path="/user_cabinets/:cabinetId" element={<CabinetDetails cabinet={cabinet} />} />
 					</Route>
 				</Routes>
 			</SelectionContext.Provider>

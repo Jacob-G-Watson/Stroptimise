@@ -3,7 +3,7 @@ from fastapi import APIRouter, Body, HTTPException, Depends
 from sqlmodel import Session, select
 
 from db import engine
-from models import Cabinet, Piece, UserCabinet, UserPiece
+from models import Cabinet, Piece, UserCabinet, UserPiece, User
 
 from .auth_fastapi_users import current_active_user
 
@@ -69,6 +69,16 @@ def add_user_cabinet(uid: str, data: dict = Body(...)):
     return _create_cabinet(UserCabinet, "user_id", uid, data)
 
 
+@router.get("/cabinets/{cid}")
+def get_cabinet(cid: str):
+    """Fetch a single job-scoped cabinet by id."""
+    with Session(engine) as s:
+        cab = s.get(Cabinet, cid)
+        if not cab:
+            raise HTTPException(status_code=404, detail="Cabinet not found")
+        return cab
+
+
 @router.get("/jobs/{pid}/cabinets")
 def get_job_cabinets(pid: str):
     with Session(engine) as s:
@@ -110,3 +120,36 @@ def delete_user_cabinet(ucid: str):
     return _delete_cabinet(
         UserCabinet, UserPiece, "user_cabinet_id", ucid, "UserCabinet not found"
     )
+
+
+@router.post("/jobs/{pid}/import_user_cabinet/{ucid}")
+def import_user_cabinet_to_job(
+    pid: str, ucid: str, user: User = Depends(current_active_user)
+):
+    with Session(engine) as s:
+        ucab = s.get(UserCabinet, ucid)
+        if not ucab:
+            raise HTTPException(status_code=404, detail="UserCabinet not found")
+        if ucab.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        # Create new job cabinet with same name (could be adjusted if name collision desired)
+        new_cab = Cabinet(name=ucab.name, job_id=pid)
+        s.add(new_cab)
+        s.commit()
+        s.refresh(new_cab)
+        # Fetch user pieces and clone
+        pieces = s.exec(
+            select(UserPiece).where(UserPiece.user_cabinet_id == ucid)
+        ).all()
+        for up in pieces:
+            piece = Piece(
+                cabinet_id=new_cab.id,
+                name=up.name,
+                width=up.width,
+                height=up.height,
+                points_json=up.points_json,
+                colour_id=up.colour_id,
+            )
+            s.add(piece)
+        s.commit()
+        return new_cab

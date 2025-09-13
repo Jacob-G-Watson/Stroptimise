@@ -5,19 +5,39 @@ import SelectionContext from "./SelectionContext";
 export default function Breadcrumbs() {
 	const { pathname } = useLocation();
 	const { job, cabinet } = React.useContext(SelectionContext);
-	if (!pathname.startsWith("/jobs") || pathname === "/jobs") return null;
+	// Support both /jobs/... and /user_cabinets/:id routes
 	const parts = pathname.split("/").filter(Boolean);
-	if (parts.length < 2) return null;
-	const jobId = parts[1];
+	const isUserCabinetRoute = parts[0] === "user_cabinets" && parts[1];
+	const isJobsRoute = parts[0] === "jobs";
+	if (!isJobsRoute && !isUserCabinetRoute) return null;
+
+	let jobId: string | undefined = undefined;
+	if (isJobsRoute) {
+		if (pathname === "/jobs") return null; // don't show on jobs list
+		if (parts.length < 2) return null;
+		jobId = parts[1];
+	}
 	const truncate = (txt?: string | null, n = 22) => (txt && txt.length > n ? txt.slice(0, n - 1) + "…" : txt);
-	const crumbs = [
-		{ label: "Jobs", to: "/jobs" },
-		{ label: truncate(job?.name || jobId), to: `/jobs/${jobId}` },
-	];
-	if (parts[2] === "layout") {
-		crumbs.push({ label: "Layout", to: `/jobs/${jobId}/layout` });
-	} else if (parts[2] === "cabinet" && parts[3]) {
-		crumbs.push({ label: truncate(cabinet?.name || parts[3]), to: `/jobs/${jobId}/cabinet/${parts[3]}` });
+	let crumbs: { label: string; to: string }[] = [];
+	if (isJobsRoute && jobId) {
+		crumbs = [
+			{ label: "Jobs", to: "/jobs" },
+			{ label: truncate(job?.name || jobId) || jobId, to: `/jobs/${jobId}` },
+		];
+		if (parts[2] === "layout") {
+			crumbs.push({ label: "Layout", to: `/jobs/${jobId}/layout` });
+		} else if (parts[2] === "cabinet" && parts[3]) {
+			crumbs.push({
+				label: truncate(cabinet?.name || parts[3]) || parts[3],
+				to: `/jobs/${jobId}/cabinet/${parts[3]}`,
+			});
+		}
+	} else if (isUserCabinetRoute) {
+		// user cabinet standalone page
+		crumbs = [
+			{ label: "Jobs", to: "/jobs" },
+			{ label: truncate(cabinet?.name || parts[1]) || parts[1], to: `/user_cabinets/${parts[1]}` },
+		];
 	}
 	const lastIndex = crumbs.length - 1;
 	return (

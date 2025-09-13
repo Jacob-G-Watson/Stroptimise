@@ -1,7 +1,16 @@
 import { useState, useEffect, useContext } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
-import { addPieceToCabinet, getCabinet, getCabinetPieces, deletePiece, ApiError } from "../services/api";
+import {
+	addPieceToCabinet,
+	addPieceToUserCabinet,
+	getCabinet,
+	getCabinetPieces,
+	getUserCabinetPieces,
+	deletePiece,
+	deleteUserPiece,
+	ApiError,
+} from "../services/api";
 import { notify } from "../services/notify";
 import { PrimaryButton, DangerButton } from "../utils/ThemeUtils";
 import PieceEditor from "./PieceEditor";
@@ -31,13 +40,22 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const [adding, setAdding] = useState(false);
 	const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
+	// Determine cabinet type (job vs user) based on normalization field added in api.ts
+	const isUserCabinet = (cab: CabinetBase | null) => (cab as any)?.owner_type === "user";
+
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
 			try {
 				if (!cabinet && cabinetIdFromParams) {
-					const c = await getCabinet(cabinetIdFromParams);
-					if (!cancelled) setCabinet(c);
+					// Attempt job cabinet fetch first; if that fails silently we leave as null.
+					// (Optional enhancement: add a getUserCabinet API call and try that second.)
+					try {
+						const c = await getCabinet(cabinetIdFromParams);
+						if (!cancelled) setCabinet(c);
+					} catch {
+						/* ignore */
+					}
 				}
 			} catch {
 				/* ignore */
@@ -45,7 +63,8 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 		})();
 		if (!cabinet?.id) return;
 		setLoading(true);
-		getCabinetPieces(cabinet.id)
+		const listFn = isUserCabinet(cabinet) ? getUserCabinetPieces : getCabinetPieces;
+		listFn(cabinet.id)
 			.then((data) => {
 				setPieces(Array.isArray(data) ? data : []);
 				setLoading(false);
@@ -62,7 +81,7 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 		setAdding(true);
 		setError("");
 		try {
-			await tryAddViaApiResetPiece();
+			await tryAddViaApiAndResetPiece();
 		} catch (err: any) {
 			if (err instanceof ApiError) {
 				setError(err.serverMessage || "Error");
@@ -75,9 +94,10 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 		}
 	};
 
-	const tryAddViaApiResetPiece = async () => {
+	const tryAddViaApiAndResetPiece = async () => {
 		if (!cabinet) return;
-		const newPiece = await addPieceToCabinet(cabinet.id, {
+		const addFn = isUserCabinet(cabinet) ? addPieceToUserCabinet : addPieceToCabinet;
+		const newPiece = await addFn(cabinet.id, {
 			name: pieceName,
 			width: pieceWidth || undefined,
 			height: pieceHeight || undefined,
@@ -96,7 +116,8 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 		setError("");
 		setDeletingIds((prev) => new Set(prev).add(id));
 		try {
-			await deletePiece(id);
+			const delFn = isUserCabinet(cabinet) ? deleteUserPiece : deletePiece;
+			await delFn(id);
 			setPieces((prev) => prev.filter((p) => p.id !== id));
 		} catch (err: any) {
 			if (err instanceof ApiError) {
@@ -155,7 +176,7 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 					onSaved={handleSavedPiece}
 					onCancel={() => setEditingPiece(null)}
 					onError={(msg) => setError(msg)}
-					patchPathPrefix={`/api/pieces`}
+					patchPathPrefix={isUserCabinet(cabinet) ? `/api/user_pieces` : `/api/pieces`}
 				/>
 			</div>
 		);

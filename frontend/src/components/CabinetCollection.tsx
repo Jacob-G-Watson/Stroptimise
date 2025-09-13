@@ -20,6 +20,7 @@ interface Props<T extends CabinetBase> {
 	cabinetCollection: CabinetCollection<T>;
 	addPlaceholder?: string;
 	addLabel?: string;
+	extraCabinetActions?: (cab: T) => React.ReactNode;
 }
 
 export default function CabinetCollection<T extends CabinetBase>({
@@ -29,16 +30,46 @@ export default function CabinetCollection<T extends CabinetBase>({
 	cabinetCollection: collection,
 	addPlaceholder = "Cabinet name",
 	addLabel = "Add",
+	extraCabinetActions,
 }: Props<T>) {
 	const [value, setValue] = React.useState("");
 	const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
+	const [normalizedItems, setNormalizedItems] = React.useState<T[]>(() => collection.items);
+
+	// Normalise cabinets when incoming list changes (helps when objects are augmented lazily after import)
+	React.useEffect(() => {
+		const norm = (cab: any) => {
+			if (!cab || typeof cab !== "object") return cab;
+			if (cab.owner_id === undefined) {
+				if (cab.job_id !== undefined) {
+					cab.owner_id = cab.job_id;
+					cab.owner_type = "job";
+				} else if (cab.user_id !== undefined) {
+					cab.owner_id = cab.user_id;
+					cab.owner_type = "user";
+				} else {
+					cab.owner_id = null;
+					cab.owner_type = null;
+				}
+			}
+			return cab;
+		};
+		setNormalizedItems(collection.items.map((c: any) => ({ ...norm({ ...c }) })) as T[]);
+	}, [collection.items]);
 
 	return (
 		<div>
 			<h3 className="font-semibold">{title}</h3>
 			{collection.loading && <div>Loading cabinets...</div>}
 			{collection.error && <div className="text-red-500">{collection.error}</div>}
-			{renderCabinetList<T>(collection, expanded, allowExpand, setExpanded, onEdit)}
+			{renderCabinetList<T>(
+				{ ...collection, items: normalizedItems },
+				expanded,
+				allowExpand,
+				setExpanded,
+				onEdit,
+				extraCabinetActions
+			)}
 			{renderAddCabinetForm<T>(collection, value, setValue, addPlaceholder, addLabel)}
 		</div>
 	);
@@ -81,7 +112,8 @@ function renderCabinetList<T extends CabinetBase>(
 	expanded: Record<string, boolean>,
 	allowExpand: boolean,
 	setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-	onEdit: ((cab: T) => void) | undefined
+	onEdit: ((cab: T) => void) | undefined,
+	extraCabinetActions?: (cab: T) => React.ReactNode
 ) {
 	return (
 		<ul className="pl-0">
@@ -100,17 +132,23 @@ function renderCabinetList<T extends CabinetBase>(
 										{isExpanded ? "▾" : "▸"}
 									</button>
 								)}
-								<span className="font-medium text-stropt-brown truncate" title={cab.name || cab.id}>
+								<button
+									className="font-medium text-stropt-brown truncate text-left hover:underline"
+									title={cab.name || cab.id}
+									onClick={() => onEdit && onEdit(cab)}
+								>
 									{cab.name || cab.id}
-								</span>
+								</button>
 							</div>
 							<div className="flex gap-2">
+								{extraCabinetActions && extraCabinetActions(cab)}
 								{onEdit && <PrimaryButton onClick={() => onEdit(cab)}>Edit</PrimaryButton>}
 								<DangerButton
 									onClick={() => {
 										if (!window.confirm("Delete this cabinet and its pieces?")) return;
 										collection.remove(cab.id).catch((err: any) => {
 											const msg = err?.serverMessage ?? err?.message;
+											console.error("Cabinet delete failed", { id: cab.id, err });
 											if (collection.setError) collection.setError(msg || "Delete failed");
 										});
 									}}

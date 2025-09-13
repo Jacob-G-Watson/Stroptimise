@@ -9,6 +9,7 @@ import {
 	addUserCabinet,
 	getUserCabinets,
 	deleteUserCabinet,
+	importUserCabinetToJob,
 } from "../services/api";
 import CabinetCollection from "./CabinetCollection";
 import useEntityCollection from "../hooks/useEntityCollection";
@@ -118,7 +119,8 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 	const userCabinetList = (
 		<CabinetCollection
 			title="Your Library"
-			allowExpand={false}
+			allowExpand={true}
+			onEdit={onEditCabinet}
 			cabinetCollection={{
 				items: userCabinetCollection.items,
 				loading: userCabinetCollection.loading,
@@ -129,6 +131,23 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 				setError: userCabinetCollection.setError,
 			}}
 			addLabel="Add User Cabinet"
+			extraCabinetActions={(cab) => (
+				<PrimaryButton
+					className="!px-3 !py-1 text-sm"
+					onClick={async (e) => {
+						e.preventDefault();
+						if (!job) return;
+						try {
+							const newCab = await importUserCabinetToJob(job.id, cab.id);
+							jobCabinetCollection.setItems((prev) => [...prev, newCab]);
+						} catch (err: any) {
+							userCabinetCollection.setError?.(err?.serverMessage || err?.message || "Import failed");
+						}
+					}}
+				>
+					Add to Job
+				</PrimaryButton>
+			)}
 		/>
 	);
 

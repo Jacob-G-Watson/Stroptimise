@@ -283,6 +283,14 @@ export async function deleteUserCabinet(userCabinetId: string): Promise<null> {
 	return await handleResponse<null>(res);
 }
 
+export async function importUserCabinetToJob(jobId: string, userCabinetId: string): Promise<Cabinet> {
+	const res = await authFetch(`/api/jobs/${jobId}/import_user_cabinet/${userCabinetId}`, {
+		method: "POST",
+	});
+	const data = await handleResponse<Cabinet>(res);
+	return _normalizeCabinetObj(data);
+}
+
 // Layout / exports
 export async function computeJobLayout(jobId: string, body: Record<string, unknown> = {}): Promise<LayoutResult> {
 	const res = await authFetch(`/api/jobs/${jobId}/layout`, {

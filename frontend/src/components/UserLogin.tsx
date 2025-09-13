@@ -29,12 +29,16 @@ function UserLogin({ onLogin }: Props) {
 			notify({ type: "error", message: msg || "Login failed" });
 			return false;
 		}
+		return false;
 	}
+}
 
-	async function handleSubmit(e: React.FormEvent) {
-		e.preventDefault();
-		setError("");
-		if (isSignup) {
+async function handleSubmit(e: React.FormEvent) {
+	e.preventDefault();
+	setError("");
+	if (isSignup) {
+		if (!email || !password) {
+			setError("Email and password required");
 			if (!email || !password) {
 				setError("Email and password required");
 				return;
@@ -54,6 +58,8 @@ function UserLogin({ onLogin }: Props) {
 		} else {
 			const success = await doLogin(email, password);
 			if (!success) setError("Invalid email or password");
+			const success = await doLogin(email, password);
+			if (!success) setError("Invalid email or password");
 		}
 	}
 
@@ -70,9 +76,22 @@ function UserLogin({ onLogin }: Props) {
 						placeholder="Email"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
+						type="email"
+						placeholder="Email"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
 						className="border px-2 py-1 mb-2 w-full"
 						required
 					/>
+					{isSignup && (
+						<input
+							type="text"
+							placeholder="Display name (optional)"
+							value={displayName}
+							onChange={(e) => setDisplayName(e.target.value)}
+							className="border px-2 py-1 mb-2 w-full"
+						/>
+					)}
 					{isSignup && (
 						<input
 							type="text"

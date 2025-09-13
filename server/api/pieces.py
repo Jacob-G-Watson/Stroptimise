@@ -6,6 +6,7 @@ from db import engine
 from models import Piece, UserPiece
 
 from .auth_fastapi_users import current_active_user
+from .auth_fastapi_users import current_active_user
 
 router = APIRouter(dependencies=[Depends(current_active_user)])
 

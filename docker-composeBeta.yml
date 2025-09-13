@@ -1,23 +1,20 @@
 services:
   server:
     image: jclass/stroptimise-server:latest
-    container_name: stroptimise_server
+    container_name: stroptimise_beta_server
     restart: unless-stopped
     env_file:
       # Load environment variables from a configurable env file (defaults to ./ .env).
       - ${STROPTIMISE_ENV_FILE:-.env}
     ports:
-      - "9050:9050"
+      - "9051:9050"
     volumes:
       - ${STROPTIMISE_DB}:/app/db.sqlite3
 
   frontend:
     image: jclass/stroptimise-frontend:latest
-    container_name: stroptimise_frontend
+    container_name: stroptimise_beta_frontend
     restart: unless-stopped
-    env_file:
-      # Load environment variables from a configurable env file (defaults to ./ .env).
-      - ${STROPTIMISE_ENV_FILE:-.env}
     ports:
-      - "9060:9060"
+      - "9061:9060"
 

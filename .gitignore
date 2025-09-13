@@ -21,3 +21,4 @@ Thumbs.db
 .env.unraid
 server/auth.log
 .env
+.env.unraidBeta

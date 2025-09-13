@@ -1,7 +1,7 @@
 FROM python:3.12-slim AS base
 WORKDIR /app
-COPY ./requirements.txt .
+COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY . /app/
-EXPOSE 8000
+COPY server/ .
+EXPOSE 9050
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9050"]

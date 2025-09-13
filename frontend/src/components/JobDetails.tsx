@@ -139,7 +139,14 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 						if (!job) return;
 						try {
 							const newCab = await importUserCabinetToJob(job.id, cab.id);
-							jobCabinetCollection.setItems((prev) => [...prev, newCab]);
+							// Refetch the job cabinets to ensure the list is fully in-sync with the server
+							try {
+								const latest = await getJobCabinets(job.id);
+								jobCabinetCollection.setItems(latest);
+							} catch (fetchErr) {
+								// If refetch fails for some reason, at least append the new cabinet so UI updates
+								jobCabinetCollection.setItems((prev) => [...prev, newCab]);
+							}
 						} catch (err: any) {
 							userCabinetCollection.setError?.(err?.serverMessage || err?.message || "Import failed");
 						}

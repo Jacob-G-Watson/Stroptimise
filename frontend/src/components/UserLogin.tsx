@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { PrimaryButton } from "../utils/ThemeUtils";
+import { authLogin, authRegister, bootstrapRefresh, getCurrentUser, ApiError } from "../services/api";
+import { notify } from "../services/notify";
+import type { User } from "../types/api";
 
-function UserLogin({ onLogin }) {
+interface Props {
+	onLogin: (user: User) => void;
+}
+
+function UserLogin({ onLogin }: Props) {
 	const [email, setEmail] = useState("");
 	const [displayName, setDisplayName] = useState("");
 	const [password, setPassword] = useState("");
@@ -9,33 +16,22 @@ function UserLogin({ onLogin }) {
 	const [error, setError] = useState("");
 	const [isSignup, setIsSignup] = useState(false);
 
-	async function doLogin(e, p) {
-		// fastapi-users bearer transport expects form fields username & password
-		const body = new URLSearchParams({ username: e, password: p });
-		const res = await fetch("/api/auth/jwt/login", {
-			method: "POST",
-			headers: { "Content-Type": "application/x-www-form-urlencoded" },
-			body: body.toString(),
-		});
-		if (res.ok) {
-			const data = await res.json();
-			window.__access_token = data.access_token; // {access_token, token_type}
-			// ask backend to issue refresh cookie
-			await fetch("/api/auth/refresh/bootstrap", {
-				method: "POST",
-				headers: { Authorization: `Bearer ${data.access_token}` },
-			});
-			const me = await fetch("/api/users/me", { headers: { Authorization: `Bearer ${data.access_token}` } });
-			if (me.ok) {
-				const u = await me.json();
-				onLogin(u);
-			}
+	async function doLogin(e: string, p: string) {
+		try {
+			const data = await authLogin(e, p);
+			window.__access_token = data.access_token;
+			await bootstrapRefresh(data.access_token).catch(() => null);
+			const u = await getCurrentUser();
+			if (u) onLogin(u);
 			return true;
+		} catch (err: any) {
+			const msg = err instanceof ApiError ? err.serverMessage : err.message;
+			notify({ type: "error", message: msg || "Login failed" });
+			return false;
 		}
-		return false;
 	}
 
-	async function handleSubmit(e) {
+	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		setError("");
 		if (isSignup) {
@@ -48,21 +44,12 @@ function UserLogin({ onLogin }) {
 				return;
 			}
 			try {
-				const res = await fetch("/api/auth/register", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ email, password, name: displayName || email }),
-				});
-				if (res.ok) {
-					// auto-login after register
-					const loginOk = await doLogin(email, password);
-					if (!loginOk) setError("Registered but login failed");
-				} else {
-					const data = await res.json().catch(() => ({}));
-					setError(data.detail || "Signup failed");
-				}
-			} catch (_) {
-				setError("Network error during signup");
+				await authRegister({ email, password, name: displayName || email });
+				const loginOk = await doLogin(email, password);
+				if (!loginOk) setError("Registered but login failed");
+			} catch (err: any) {
+				const msg = err instanceof ApiError ? err.serverMessage : err.message;
+				setError(msg || "Signup failed");
 			}
 		} else {
 			const success = await doLogin(email, password);

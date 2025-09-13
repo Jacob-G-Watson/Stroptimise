@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { authFetch } from "../services/authFetch";
+import {
+	getJob,
+	computeJobLayout,
+	exportLayoutPdf,
+	getCutsheetPdf,
+	quickDownloadJobPath,
+	ApiError,
+} from "../services/api";
+import { notify } from "../services/notify";
 import SheetSvg from "../utils/SheetSvg";
 import { useParams } from "react-router-dom";
 import SelectionContext from "../utils/SelectionContext";
 import { PrimaryButton } from "../utils/ThemeUtils";
+import type { Job, LayoutResult } from "../types/api";
 
-function JobLayoutViewer({ job: propJob, onOptimised }) {
+interface Props {
+	job: Job | null;
+	onOptimised?: (result: LayoutResult) => void;
+}
+
+function JobLayoutViewer({ job: propJob, onOptimised }: Props) {
 	const { jobId } = useParams();
 	const { setJob: setCtxJob, job: ctxJob } = React.useContext(SelectionContext);
-	const [fetchedJob, setFetchedJob] = useState(null);
-
-	// Determine job precedence: prop -> context -> fetched
+	const [fetchedJob, setFetchedJob] = useState<Job | null>(null);
 	const job = propJob || ctxJob || fetchedJob;
 
 	useEffect(() => {
@@ -18,15 +30,12 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 		if (!job && jobId) {
 			(async () => {
 				try {
-					const r = await authFetch(`/api/jobs/${jobId}`);
-					if (r.ok) {
-						const j = await r.json();
-						if (!cancelled) {
-							setFetchedJob(j);
-							setCtxJob && setCtxJob(j);
-						}
+					const j = await getJob(jobId);
+					if (!cancelled) {
+						setFetchedJob(j);
+						setCtxJob && setCtxJob(j);
 					}
-				} catch (_) {
+				} catch {
 					/* ignore */
 				}
 			})();
@@ -35,12 +44,13 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 			cancelled = true;
 		};
 	}, [job, jobId, setCtxJob]);
-	const [sheetWidth, setSheetWidth] = useState(2400); // mm
-	const [sheetHeight, setSheetHeight] = useState(1200); // mm
+
+	const [sheetWidth, setSheetWidth] = useState<number | string>(2400);
+	const [sheetHeight, setSheetHeight] = useState<number | string>(1200);
 	const [allowRotation, setAllowRotation] = useState(true);
-	const [kerf, setKerf] = useState(3); // default kerf mm
+	const [kerf, setKerf] = useState<number | string>(3);
 	const [packingMode, setPackingMode] = useState("heuristic");
-	const [result, setResult] = useState(null);
+	const [result, setResult] = useState<LayoutResult | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 
@@ -49,26 +59,19 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 		setLoading(true);
 		setError("");
 		try {
-			const res = await authFetch(`/api/jobs/${job.id}/layout`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					sheet_width: Number(sheetWidth),
-					sheet_height: Number(sheetHeight),
-					allow_rotation: allowRotation,
-					kerf_mm: Number(kerf) || 3,
-					packing_mode: packingMode,
-				}),
+			const data = await computeJobLayout(job.id, {
+				sheet_width: Number(sheetWidth),
+				sheet_height: Number(sheetHeight),
+				allow_rotation: allowRotation,
+				kerf_mm: Number(kerf) || 3,
+				packing_mode: packingMode,
 			});
-			if (!res.ok) {
-				const msg = await res.text();
-				throw new Error(msg || "Failed to compute layout");
-			}
-			const data = await res.json();
 			setResult(data);
 			onOptimised && onOptimised(data);
-		} catch (e) {
-			setError(e.message || String(e));
+		} catch (e: any) {
+			const msg = e instanceof ApiError ? e.serverMessage : e.message;
+			setError(msg || String(e));
+			notify({ type: "error", message: msg });
 		} finally {
 			setLoading(false);
 		}
@@ -80,32 +83,27 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 		if (!job?.id) return;
 		setError("");
 		try {
-			const res = await authFetch(`/api/jobs/${job.id}/layout/export/pdf`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					sheet_width: Number(sheetWidth),
-					sheet_height: Number(sheetHeight),
-					allow_rotation: allowRotation,
-					kerf_mm: Number(kerf) || 3,
-					packing_mode: packingMode,
-				}),
+			const res = await exportLayoutPdf(job.id, {
+				sheet_width: Number(sheetWidth),
+				sheet_height: Number(sheetHeight),
+				allow_rotation: allowRotation,
+				kerf_mm: Number(kerf) || 3,
+				packing_mode: packingMode,
 			});
-			if (!res.ok) {
-				const msg = await res.text();
-				throw new Error(msg || "Failed to export PDF");
-			}
+			if (!res.ok) throw new Error("Failed to export PDF");
 			const blob = await res.blob();
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = res.headers.get("X-Filename");
+			a.download = res.headers.get("X-Filename") || "layout.pdf";
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
 			window.URL.revokeObjectURL(url);
-		} catch (e) {
-			setError(e.message || String(e));
+		} catch (e: any) {
+			const msg = e instanceof ApiError ? e.serverMessage : e.message;
+			setError(msg || String(e));
+			notify({ type: "error", message: msg });
 		}
 	};
 
@@ -113,11 +111,8 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 		if (!job?.id) return;
 		setError("");
 		try {
-			const res = await authFetch(`/api/jobs/${job.id}/cutsheet.pdf`);
-			if (!res.ok) {
-				const msg = await res.text();
-				throw new Error(msg || "Failed to export cutsheet PDF");
-			}
+			const res = await getCutsheetPdf(job.id);
+			if (!res.ok) throw new Error("Failed to export cutsheet PDF");
 			const blob = await res.blob();
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
@@ -127,27 +122,31 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 			a.click();
 			a.remove();
 			window.URL.revokeObjectURL(url);
-		} catch (e) {
-			setError(e.message || String(e));
+		} catch (e: any) {
+			const msg = e instanceof ApiError ? e.serverMessage : e.message;
+			setError(msg || String(e));
+			notify({ type: "error", message: msg });
 		}
 	};
 
-	const quickDownload = async (path) => {
+	const quickDownload = async (path: string) => {
 		if (!job?.id) return;
 		try {
-			const res = await authFetch(`/api/jobs/${job.id}/${path}`);
+			const res = await quickDownloadJobPath(job.id, path);
 			if (!res.ok) throw new Error(`Failed to download ${path}`);
 			const blob = await res.blob();
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = res.headers.get("X-Filename") || path.split("/").pop();
+			a.download = res.headers.get("X-Filename") || path.split("/").pop() || "download";
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
 			window.URL.revokeObjectURL(url);
-		} catch (e) {
-			setError(e.message || String(e));
+		} catch (e: any) {
+			const msg = e instanceof ApiError ? e.serverMessage : e.message;
+			setError(msg || String(e));
+			notify({ type: "error", message: msg });
 		}
 	};
 
@@ -232,13 +231,11 @@ function JobLayoutViewer({ job: propJob, onOptimised }) {
 					</select>
 				</div>
 			</div>
-
 			{error && <div className="text-red-500 mb-3">{error}</div>}
-
 			<div className="flex flex-wrap gap-6">
 				{sheets.length === 0 && !loading && <div>No layout computed yet</div>}
 				{sheets.map((sheet) => (
-					<SheetSvg key={sheet.index} sheet={sheet} />
+					<SheetSvg key={sheet.index} sheet={sheet as any} />
 				))}
 			</div>
 		</div>

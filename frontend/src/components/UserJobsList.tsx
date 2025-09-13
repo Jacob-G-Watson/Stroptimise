@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { authFetch } from "../services/authFetch";
+import { getJobsForUser, createJob, ApiError } from "../services/api";
+import { notify } from "../services/notify";
 import { PrimaryButton } from "../utils/ThemeUtils";
+import type { User, Job } from "../types/api";
 
-function UserJobsList({ user, onSelectJob }) {
-	const [jobs, setJobs] = useState([]);
+interface Props {
+	user: User | null;
+	onSelectJob: (job: Job) => void;
+}
+
+function UserJobsList({ user, onSelectJob }: Props) {
+	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [adding, setAdding] = useState(false);
@@ -14,47 +21,40 @@ function UserJobsList({ user, onSelectJob }) {
 		let cancelled = false;
 		const ac = new AbortController();
 		setLoading(true);
-		authFetch(`/api/jobs?user_id=${user.id}`, { signal: ac.signal })
-			.then((res) => {
-				if (!res.ok) throw new Error("Failed to fetch jobs");
-				return res.json();
-			})
+		getJobsForUser(user.id, { signal: ac.signal })
 			.then((data) => {
 				if (!cancelled) {
 					setJobs(data);
 					setLoading(false);
 				}
 			})
-			.catch((err) => {
+			.catch((err: any) => {
 				if (err.name === "AbortError") return;
 				if (!cancelled) {
-					setError(err.message);
+					const msg = err instanceof ApiError ? err.serverMessage : err.message;
+					setError(msg);
 					setLoading(false);
 				}
 			});
-
 		return () => {
 			cancelled = true;
 			ac.abort();
 		};
 	}, [user]);
 
-	const handleAddJob = async (e) => {
+	const handleAddJob = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!user) return;
 		setAdding(true);
 		setError("");
 		try {
-			const res = await authFetch("/api/jobs", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: jobName, user_id: user.id }),
-			});
-			if (!res.ok) throw new Error("Failed to add job");
-			const newJob = await res.json();
+			const newJob = await createJob({ name: jobName, user_id: user.id });
 			setJobs((prev) => [...prev, newJob]);
 			setJobName("");
-		} catch (err) {
-			setError(err.message);
+		} catch (err: any) {
+			const msg = err instanceof ApiError ? err.serverMessage : err.message;
+			setError(msg);
+			notify({ type: "error", message: msg });
 		} finally {
 			setAdding(false);
 		}

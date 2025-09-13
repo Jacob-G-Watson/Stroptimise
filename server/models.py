@@ -19,6 +19,8 @@ class User(SQLModel, table=True):
     is_verified: bool = False
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")
     jobs: List["Job"] = Relationship(back_populates="user")
+    # User-scoped cabinets (like `Cabinet` but owned by a user)
+    user_cabinets: List["UserCabinet"] = Relationship(back_populates="user")
     # todo kerf should be per user
 
 
@@ -39,6 +41,8 @@ class Colour(SQLModel, table=True):
     id: str = Field(default_factory=guid, primary_key=True)
     name: str
     pieces: List["Piece"] = Relationship(back_populates="colour")
+    # User-scoped pieces (pieces that belong to a UserCabinet)
+    user_pieces: List["UserPiece"] = Relationship(back_populates="colour")
     sheets: List["Sheet"] = Relationship(back_populates="colour")
 
 
@@ -59,6 +63,15 @@ class Cabinet(SQLModel, table=True):
     pieces: List["Piece"] = Relationship(back_populates="cabinet")
 
 
+class UserCabinet(SQLModel, table=True):
+    __tablename__ = "user_cabinet"
+    id: str = Field(default_factory=guid, primary_key=True)
+    name: str
+    user_id: str = Field(foreign_key="user.id")
+    user: Optional[User] = Relationship(back_populates="user_cabinets")
+    pieces: List["UserPiece"] = Relationship(back_populates="user_cabinet")
+
+
 class Piece(SQLModel, table=True):
     id: str = Field(default_factory=guid, primary_key=True)
     cabinet_id: str = Field(foreign_key="cabinet.id")
@@ -70,6 +83,19 @@ class Piece(SQLModel, table=True):
     points_json: Optional[str] = None
     cabinet: Optional[Cabinet] = Relationship(back_populates="pieces")
     colour: Optional[Colour] = Relationship(back_populates="pieces")
+
+
+class UserPiece(SQLModel, table=True):
+    __tablename__ = "user_piece"
+    id: str = Field(default_factory=guid, primary_key=True)
+    user_cabinet_id: str = Field(foreign_key="user_cabinet.id")
+    colour_id: Optional[str] = Field(foreign_key="colour.id")
+    name: Optional[str] = None
+    width: int = 0
+    height: int = 0
+    points_json: Optional[str] = None
+    user_cabinet: Optional[UserCabinet] = Relationship(back_populates="pieces")
+    colour: Optional[Colour] = Relationship(back_populates="user_pieces")
 
 
 class Placement(SQLModel, table=True):

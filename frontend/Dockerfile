@@ -1,9 +1,9 @@
 # Use official Node.js image to build the frontend
 FROM node:20 AS build
 WORKDIR /app
-COPY frontend/package*.json ./
+COPY ./package*.json ./
 RUN npm ci
-COPY frontend/ ./
+COPY ./ ./
 RUN npm run build
 
 # Use official Nginx image to serve the built frontend

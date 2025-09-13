@@ -36,7 +36,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Tag image
-        run: docker tag my-image-name:${{ github.sha }} yourdockerhubusername/your-repo:${{ github.sha }}
+        run: docker tag jclass/stroptimise:${{ github.sha }} yourdockerhubusername/your-repo:${{ github.sha }}
 
       - name: Push image
         run: docker push jclass/stroptimise:${{ github.sha }}

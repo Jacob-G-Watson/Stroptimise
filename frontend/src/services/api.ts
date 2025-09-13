@@ -258,6 +258,16 @@ export async function deleteCabinet(cabinetId: string): Promise<null> {
 	return await handleResponse<null>(res);
 }
 
+export async function updateCabinetName(cabinetId: string, name: string): Promise<Cabinet> {
+	const res = await authFetch(`/api/cabinets/${cabinetId}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
+	});
+	const data = await handleResponse<Cabinet>(res);
+	return _normalizeCabinetObj(data);
+}
+
 // User cabinets
 export async function getUserCabinets(
 	userId: string,
@@ -281,6 +291,16 @@ export async function addUserCabinet(userId: string, { name }: { name: string })
 export async function deleteUserCabinet(userCabinetId: string): Promise<null> {
 	const res = await authFetch(`/api/user_cabinets/${userCabinetId}`, { method: "DELETE" });
 	return await handleResponse<null>(res);
+}
+
+export async function updateUserCabinetName(userCabinetId: string, name: string): Promise<UserCabinet> {
+	const res = await authFetch(`/api/user_cabinets/${userCabinetId}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
+	});
+	const data = await handleResponse<UserCabinet>(res);
+	return _normalizeCabinetObj(data);
 }
 
 export async function importUserCabinetToJob(jobId: string, userCabinetId: string): Promise<Cabinet> {

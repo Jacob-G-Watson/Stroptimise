@@ -122,6 +122,41 @@ def delete_user_cabinet(ucid: str):
     )
 
 
+@router.patch("/cabinets/{cid}")
+def update_cabinet(cid: str, data: dict = Body(...)):
+    """Update mutable fields of a job cabinet (currently only name)."""
+    with Session(engine) as s:
+        cab = s.get(Cabinet, cid)
+        if not cab:
+            raise HTTPException(status_code=404, detail="Cabinet not found")
+        name = data.get("name")
+        if name is not None:
+            cab.name = name
+        s.add(cab)
+        s.commit()
+        s.refresh(cab)
+        return cab
+
+
+@router.patch("/user_cabinets/{ucid}")
+def update_user_cabinet(
+    ucid: str, data: dict = Body(...), user: User = Depends(current_active_user)
+):
+    with Session(engine) as s:
+        cab = s.get(UserCabinet, ucid)
+        if not cab:
+            raise HTTPException(status_code=404, detail="UserCabinet not found")
+        if cab.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        name = data.get("name")
+        if name is not None:
+            cab.name = name
+        s.add(cab)
+        s.commit()
+        s.refresh(cab)
+        return cab
+
+
 @router.post("/jobs/{pid}/import_user_cabinet/{ucid}")
 def import_user_cabinet_to_job(
     pid: str, ucid: str, user: User = Depends(current_active_user)

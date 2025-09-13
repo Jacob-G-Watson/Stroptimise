@@ -132,13 +132,9 @@ function renderCabinetList<T extends CabinetBase>(
 										{isExpanded ? "▾" : "▸"}
 									</button>
 								)}
-								<button
-									className="font-medium text-stropt-brown truncate text-left hover:underline"
-									title={cab.name || cab.id}
-									onClick={() => onEdit && onEdit(cab)}
-								>
+								<span className="font-medium text-stropt-brown truncate" title={cab.name || cab.id}>
 									{cab.name || cab.id}
-								</button>
+								</span>
 							</div>
 							<div className="flex gap-2">
 								{extraCabinetActions && extraCabinetActions(cab)}

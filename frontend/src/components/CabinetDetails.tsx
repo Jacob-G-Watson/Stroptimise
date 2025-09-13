@@ -9,6 +9,8 @@ import {
 	getUserCabinetPieces,
 	deletePiece,
 	deleteUserPiece,
+	updateCabinetName,
+	updateUserCabinetName,
 	ApiError,
 } from "../services/api";
 import { notify } from "../services/notify";
@@ -39,6 +41,9 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const [polygonText, setPolygonText] = useState("");
 	const [adding, setAdding] = useState(false);
 	const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+	const [renaming, setRenaming] = useState(false);
+	const [newName, setNewName] = useState("");
+	const [savingName, setSavingName] = useState(false);
 
 	// Determine cabinet type (job vs user) based on normalization field added in api.ts
 	const isUserCabinet = (cab: CabinetBase | null) => (cab as any)?.owner_type === "user";
@@ -138,6 +143,40 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const handleEditPiece = (piece: PieceBase) => {
 		setError("");
 		setEditingPiece(piece);
+	};
+
+	const beginRename = () => {
+		if (!cabinet) return;
+		setNewName(cabinet.name || "");
+		setRenaming(true);
+	};
+
+	const cancelRename = () => {
+		setRenaming(false);
+		setNewName("");
+	};
+
+	const saveRename = async () => {
+		if (!cabinet) return;
+		if (!newName.trim()) return;
+		setSavingName(true);
+		setError("");
+		try {
+			const fn = isUserCabinet(cabinet) ? updateUserCabinetName : updateCabinetName;
+			const updated = await fn(cabinet.id, newName.trim());
+			setCabinet({ ...(cabinet as any), name: updated.name });
+			setRenaming(false);
+			notify({ type: "info", message: "Cabinet renamed" });
+		} catch (err: any) {
+			if (err instanceof ApiError) {
+				setError(err.serverMessage || "Rename failed");
+				notify({ type: "error", message: err.serverMessage || "Rename failed" });
+			} else {
+				throw err;
+			}
+		} finally {
+			setSavingName(false);
+		}
 	};
 
 	const renderPieceItem = (
@@ -252,7 +291,43 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 				</div>
 			) : (
 				<>
-					<h2 className="text-xl font-bold mb-2 text-stropt-brown">Cabinet: {cabinet.name}</h2>
+					<div className="flex items-center gap-3 mb-2">
+						<h2 className="text-xl font-bold text-stropt-brown m-0">
+							Cabinet:{" "}
+							{!renaming ? (
+								<span>{cabinet.name}</span>
+							) : (
+								<input
+									type="text"
+									value={newName}
+									onChange={(e) => setNewName(e.target.value)}
+									className="border rounded px-2 py-1 text-sm"
+								/>
+							)}
+						</h2>
+						{!renaming ? (
+							<PrimaryButton onClick={beginRename} className="px-3 py-1 text-sm">
+								Rename
+							</PrimaryButton>
+						) : (
+							<div className="flex items-center gap-2">
+								<PrimaryButton
+									onClick={saveRename}
+									disabled={savingName || !newName.trim()}
+									className="px-3 py-1 text-sm"
+								>
+									{savingName ? "Saving..." : "Save"}
+								</PrimaryButton>
+								<DangerButton
+									onClick={cancelRename}
+									disabled={savingName}
+									className="px-3 py-1 text-sm"
+								>
+									Cancel
+								</DangerButton>
+							</div>
+						)}
+					</div>
 					{loading && <div>Loading pieces...</div>}
 					{error && <div className="text-red-500">{error}</div>}
 					{renderAddPieceForm()}

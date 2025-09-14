@@ -40,5 +40,3 @@ When adding functionality:
 Files to inspect first for most changes: `server/app.py`, `server/models.py`, `server/api/*.py`, `server/services/*`, `frontend/src/services/api.ts`, and `frontend/src/services/authFetch.ts`.
 
 If something isn't discoverable here (CI settings, external integrations), ask a human for secrets/credentials or missing docs. After edits, run lint/tests and a quick smoke run (see above commands).
-
-If you'd like, I can expand one of these sections into an end-to-end example (add endpoint + frontend + test). Reply which area you want expanded.

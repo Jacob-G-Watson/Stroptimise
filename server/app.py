@@ -17,6 +17,12 @@ root_env = Path(__file__).resolve().parents[1] / ".env"
 if root_env.exists():
     load_dotenv(root_env)
 
+# Configure centralized logging before importing modules that may log during
+# import. This ensures consistent formatting and handlers across the backend.
+from logging_config import configure_logging  # noqa: E402
+
+configure_logging()
+
 # Now safe to import routers that depend on env configuration
 from api import cabinets, jobs, pieces, layout  # noqa: E402
 from api import auth_fastapi_users  # noqa: E402

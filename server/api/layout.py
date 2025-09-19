@@ -149,7 +149,7 @@ def export_job_layout_pdf(pid: str, body: LayoutRequest):
 
 def retrieve_and_pack_cabinets(pid, body):
 
-    job, pieces = error_handle_db_fetch_job_pieces(pid)
+    job, pieces = db_fetch_job_and_pieces(pid)
 
     allow_rotation = (
         body.allow_rotation
@@ -198,19 +198,6 @@ def convert_pieces_to_shapes(pieces):
             )
 
     return rectangles_or_polygons
-
-
-def error_handle_db_fetch_job_pieces(pid):
-    try:
-        job, pieces = db_fetch_job_and_pieces(pid)
-    except HTTPException:
-        raise
-    except Exception as e:
-        # Use module logger; include the exception traceback
-        logger.exception("Error fetching job or pieces: %s", e)
-        raise HTTPException(status_code=500, detail="Unknown database error")
-
-    return job, pieces
 
 
 def db_fetch_job_and_pieces(pid):

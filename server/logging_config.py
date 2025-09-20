@@ -25,7 +25,7 @@ from typing import Optional
 def _int_env(name: str, default: int) -> int:
     try:
         return int(os.getenv(name, str(default)))
-    except Exception:
+    except ValueError:
         return default
 
 

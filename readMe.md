@@ -38,3 +38,40 @@ py -m venv .venv
 py -m pip install -r requirements.txt
 py -m uvicorn app:app --reload --host 0.0.0.0 --port 9050
 ```
+
+### Testing frontend
+
+uses jest
+
+```powershell
+cd (git rev-parse --show-toplevel)\frontend
+npm test
+```
+
+### Testing backend
+
+Uses pytest
+
+Check that the dev requirements are installed which includes testing requirements. Then run tests.
+
+```powershell
+cd (git rev-parse --show-toplevel)\server
+python -m pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+### Testing with ACT
+
+```powershell
+cd (git rev-parse --show-toplevel)
+winget install nektos.act
+act -W .github\workflows\pr-tests.yml
+```
+
+For only one set of tests
+
+```powershell
+cd (git rev-parse --show-toplevel)
+act -W .github\workflows\pr-tests.yml -j backend-tests
+act -W .github\workflows\pr-tests.yml -j frontend-tests
+```

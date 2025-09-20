@@ -2,19 +2,23 @@
 
 ## UI
 
-- Sheet spacing should be nicer, keep it on screen
+- Viewer
+  - Sheet spacing should be nicer, keep it on screen
+  - show measurements on layout preview
+  - Zoom on web viewer
+  - Click and drag to manually intervene
 - Easy way to put in a poly
   - SVG click/drag editor (no deps): user clicks to add vertices on an SVG canvas, drag vertices to adjust, buttons for undo/clear/finish. Simple and no extra libs.
   - User enters in json but it is immediately shown on screen what that does
   - Show measurements on screen
   - fix up how it hangs out the side
-- show measurements on layout preview
-- Zoom on webviewer
+- responsive web pages
 
 ## Function
 
-- Make it at least somewhat secure
 - Load data in from a csv or json modified export
+- The user does not have to manually select view layout whenever something is change the format is calculated
+- Kerf should be stored somewhere, check were it is and make sure that is valid. First thought is that it should be stored close to a placement set
 
 ## Optimiser
 
@@ -23,6 +27,8 @@
 - Once a minimum number of sheets is reached then prioritise moving all of the empty space to one area
 - Current optimising is bad it wastes a lot of space
 
+- Does L get filled or is it bounding boxed
+
 - JobLayoutViewer when opened should load a placement group from the database where one exists.
 when this page first loads if there exists a placement group in the db I want to use that one. Only if there have been no changes to the cabinets or pieces of the job since the placement group was calculated.
 - Any time a cabinet is modified (pieces added, edited or removed) or a cabinet is added to a job, flag the placement group as old new db field
@@ -30,33 +36,6 @@ could do a delete instead
 
 ## CICD
 
-- Get it hosted
-- Have it build off one command
-- Move to a proper DB
-- Have an update of the main branch push to prod
-
 ## Tech Debt
 
-- app.py should be sorted better into different functions. Could look at different files
 - Testing framework
-
-
-
-
-Should run [Any time a cabinet is modified (pieces added, edited or removed) or a cabinet is added to a job]. It iterate through all packing modes starting with the quickest and saving to the db a placement group ever time it finishes a run.
-2.
-
-I want the proccess to be async the user should not wait for optimiser to run when they add a peice
-
-as soon as a new edit add or delete is made stop the current optmisation and make a new one
-
-when opening the joblayoutviewer I want to display the most recently calculated placement group to the user
-
-add a debug print into the server so that ever time it starts and ends a run it is put in the terminal
-
-Do not modify my db schema
-
-Do not ask me to interact
-
-
-

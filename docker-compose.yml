@@ -1,23 +1,31 @@
 services:
   server:
-    image: jclass/stroptimise-server:latest
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: stroptimise-server:local
     container_name: stroptimise_server
-    restart: unless-stopped
-    env_file:
-      # Load environment variables from a configurable env file (defaults to ./ .env).
-      - ${STROPTIMISE_ENV_FILE:-.env}
     ports:
       - "9050:9050"
+    env_file:
+      - ${STROPTIMISE_ENV_FILE:-./enviroments/.env.local}
     volumes:
-      - ${STROPTIMISE_DB}:/app/db.sqlite3
+      - ${STROPTIMISE_DB:-./server/db.sqlite3}:/app/db.sqlite3
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
 
   frontend:
-    image: jclass/stroptimise-frontend:latest
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: stroptimise-frontend:local
     container_name: stroptimise_frontend
-    restart: unless-stopped
     env_file:
-      # Load environment variables from a configurable env file (defaults to ./ .env).
-      - ${STROPTIMISE_ENV_FILE:-.env}
+      - ${STROPTIMISE_ENV_FILE:-./enviroments/.env.local}
     ports:
-      - "9060:9060"
-
+      # Map host FRONTEND_PORT to the container FRONTEND_PORT (fall back to 9060)
+      - "${FRONTEND_PORT:-9060}:${FRONTEND_PORT:-9060}"
+    depends_on:
+      - server
+    restart: unless-stopped

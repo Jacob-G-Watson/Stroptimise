@@ -20,11 +20,13 @@ from db import engine
 from models import User, RefreshToken
 import os
 import logging
+
+logger = logging.getLogger(__name__)
 import secrets
 
 TOKEN_ENCRYPTION_KEY = os.getenv("JWT_SECRET")
 if not TOKEN_ENCRYPTION_KEY:
-    logging.getLogger("auth").error(
+    logger.error(
         "JWT_SECRET environment variable is missing; application will not start. Please set JWT_SECRET to a secure value."
     )
     raise RuntimeError(

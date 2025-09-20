@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+import logging
 from typing import Optional
 import re
 
@@ -22,15 +23,13 @@ from services.export import sheets_to_pdf_bytes
 
 from .auth_fastapi_users import current_active_user
 
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(dependencies=[Depends(current_active_user)])
 
 
 def _sanitize_filename(s: str) -> str:
-    """Make a safe filename fragment from an arbitrary string.
-
-    Keeps letters, numbers, underscores and hyphens. Replaces whitespace and
-    other punctuation with single hyphens and trims length.
-    """
     if not s:
         return "job"
     name = s.strip()
@@ -52,60 +51,8 @@ class LayoutRequest(BaseModel):
 
 @router.post("/jobs/{pid}/layout")
 def compute_job_layout(pid: str, body: LayoutRequest):
-    # 1) Collect all pieces belonging to the job's cabinets
-    with Session(engine) as s:
-        job = s.get(Job, pid)
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
 
-        cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
-        if not cabinets:
-            return {"sheets": []}
-        cab_ids = [c.id for c in cabinets if c.id]
-        if not cab_ids:
-            return {"sheets": []}
-        pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
-
-    # 2) Map to rects or polygons for the optimiser
-    rects_or_polys = []
-    for p in pieces:
-        if p.points_json:
-            rects_or_polys.append(
-                {
-                    "id": p.id,
-                    "name": getattr(p, "name", None),
-                    "polygon": json.loads(p.points_json),
-                }
-            )
-        else:
-            rects_or_polys.append(
-                {
-                    "id": p.id,
-                    "name": getattr(p, "name", None),
-                    "width": p.width,
-                    "height": p.height,
-                }
-            )
-
-    # Determine allow_rotation and kerf using job defaults if not provided
-    allow_rotation = body.allow_rotation
-    if allow_rotation is None:
-        allow_rotation = bool(getattr(job, "allow_rotation", True))
-    kerf = (
-        body.kerf_mm if body.kerf_mm is not None else (getattr(job, "kerf_mm", 0) or 0)
-    )
-
-    try:
-        result = pack(
-            rects_or_polys,
-            sheet_width=body.sheet_width,
-            sheet_height=body.sheet_height,
-            allow_rotation=allow_rotation,
-            kerf=kerf or 0,
-            packing_mode=body.packing_mode or "heuristic",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    job, result = retrieve_and_pack_cabinets(pid, body)
 
     # Save PlacementGroup and Placements
     with Session(engine) as s:
@@ -183,57 +130,7 @@ def compute_job_layout(pid: str, body: LayoutRequest):
 @router.post("/jobs/{pid}/layout/export/pdf")
 def export_job_layout_pdf(pid: str, body: LayoutRequest):
     # Reuse the same logic as compute_job_layout but return a PDF file.
-    with Session(engine) as s:
-        job = s.get(Job, pid)
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
-
-        cabinets = s.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
-        if not cabinets:
-            raise HTTPException(status_code=400, detail="No cabinets for this job")
-        cab_ids = [c.id for c in cabinets if c.id]
-        if not cab_ids:
-            raise HTTPException(status_code=400, detail="No cabinets for this job")
-        pieces = s.exec(select(Piece).where(Piece.cabinet_id.in_(cab_ids))).all()
-
-    rects_or_polys = []
-    for p in pieces:
-        if p.points_json:
-            rects_or_polys.append(
-                {
-                    "id": p.id,
-                    "name": getattr(p, "name", None),
-                    "polygon": json.loads(p.points_json),
-                }
-            )
-        else:
-            rects_or_polys.append(
-                {
-                    "id": p.id,
-                    "name": getattr(p, "name", None),
-                    "width": p.width,
-                    "height": p.height,
-                }
-            )
-
-    allow_rotation = body.allow_rotation
-    if allow_rotation is None:
-        allow_rotation = bool(getattr(job, "allow_rotation", True))
-    kerf = (
-        body.kerf_mm if body.kerf_mm is not None else (getattr(job, "kerf_mm", 0) or 0)
-    )
-
-    try:
-        result = pack(
-            rects_or_polys,
-            sheet_width=body.sheet_width,
-            sheet_height=body.sheet_height,
-            allow_rotation=allow_rotation,
-            kerf=kerf or 0,
-            packing_mode=body.packing_mode or "heuristic",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    job, result = retrieve_and_pack_cabinets(pid, body)
 
     # Render to PDF bytes
     sanitized_name = _sanitize_filename(getattr(job, "name", None))
@@ -248,3 +145,76 @@ def export_job_layout_pdf(pid: str, body: LayoutRequest):
             "X-Filename": filename,
         },
     )
+
+
+def retrieve_and_pack_cabinets(pid, body):
+
+    job, pieces = db_fetch_job_and_pieces(pid)
+
+    allow_rotation = (
+        body.allow_rotation
+        if body.allow_rotation is not None
+        else bool(getattr(job, "allow_rotation", True))
+    )
+    kerf = (
+        body.kerf_mm if body.kerf_mm is not None else (getattr(job, "kerf_mm", 0) or 0)
+    )
+
+    try:
+        result = pack(
+            convert_pieces_to_shapes(pieces),
+            sheet_width=body.sheet_width,
+            sheet_height=body.sheet_height,
+            allow_rotation=allow_rotation,
+            kerf=kerf or 0,
+            packing_mode=body.packing_mode or "heuristic",
+        )
+    except ValueError as e:
+        # Log the exception with traceback and the error message
+        logger.exception("Error during packing: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+    return job, result
+
+
+def convert_pieces_to_shapes(pieces):
+    rectangles_or_polygons = []
+    for p in pieces:
+        if p.points_json:
+            rectangles_or_polygons.append(
+                {
+                    "id": p.id,
+                    "name": getattr(p, "name", None),
+                    "polygon": json.loads(p.points_json),
+                }
+            )
+        else:
+            rectangles_or_polygons.append(
+                {
+                    "id": p.id,
+                    "name": getattr(p, "name", None),
+                    "width": p.width,
+                    "height": p.height,
+                }
+            )
+
+    return rectangles_or_polygons
+
+
+def db_fetch_job_and_pieces(pid):
+    with Session(engine) as db_session:
+        job = db_session.get(Job, pid)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        cabinets = db_session.exec(select(Cabinet).where(Cabinet.job_id == pid)).all()
+        if not cabinets:
+            raise HTTPException(status_code=400, detail="No cabinets for this job")
+
+        cab_ids = [c.id for c in cabinets if c.id]
+        if not cab_ids:
+            raise HTTPException(status_code=400, detail="No cabinets for this job")
+        pieces = db_session.exec(
+            select(Piece).where(Piece.cabinet_id.in_(cab_ids))
+        ).all()
+
+    return job, pieces

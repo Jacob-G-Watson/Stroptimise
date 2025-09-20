@@ -56,7 +56,7 @@ Check that the dev requirements are installed which includes testing requirement
 
 ```powershell
 cd (git rev-parse --show-toplevel)\server
-python -m pip install -r server/requirements.txt -r server/requirements-dev.txt
+python -m pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
 

@@ -21,7 +21,7 @@ Without using the GitHub and DockerHub integration the stack can be built with t
 ## Building and Pushing Locally with ACT
 
 You can use [nektos/act](https://github.com/nektos/act) to simulate GitHub Actions workflows locally for building and pushing Docker images. This helps verify your CI/CD steps before pushing to GitHub.
-Can use```winget install nektos.act``` to install.
+Can use ```winget install nektos.act``` to install.
 
 To build and push images locally using ACT:
 

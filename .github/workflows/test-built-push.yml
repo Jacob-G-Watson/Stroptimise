@@ -1,4 +1,4 @@
-name: CI — branch tests
+name: Test, Build and Push Docker Images
 
 on:
   push:
@@ -102,7 +102,7 @@ jobs:
               server_tags+=",jclass/stroptimise-server:latest"
               frontend_tags+=",jclass/stroptimise-frontend:latest"
             else
-              # (local with act, pull_request, etc.) should be tagged locally
+              # (local with act, it behaves like a push) should be tagged locally
               server_tags+=",jclass/stroptimise-server:local"
               frontend_tags+=",jclass/stroptimise-frontend:local"
             fi

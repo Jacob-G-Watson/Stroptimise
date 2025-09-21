@@ -232,10 +232,15 @@ function JobLayoutViewer({ job: propJob, onOptimised }: Props) {
 				</div>
 			</div>
 			{error && <div className="text-red-500 mb-3">{error}</div>}
-			<div className="flex flex-wrap gap-6">
+			<div className="flex flex-wrap gap-6 items-start">
 				{sheets.length === 0 && !loading && <div>No layout computed yet</div>}
 				{sheets.map((sheet) => (
-					<SheetSvg key={sheet.index} sheet={sheet as any} />
+					// Mobile: full width. Desktop (md+): take half the row but subtract
+					// half the gap so two items + gap fit within 100% and don't wrap.
+					// gap-6 == 1.5rem, half is 0.75rem.
+					<div key={sheet.index} className="w-full md:w-[calc(50%_-_0.75rem)] md:flex-shrink-0">
+						<SheetSvg sheet={sheet as any} />
+					</div>
 				))}
 			</div>
 		</div>

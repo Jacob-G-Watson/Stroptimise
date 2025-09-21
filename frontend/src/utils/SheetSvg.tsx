@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { centroid as computeCentroid, PointTuple } from "../services/layoutUtils";
 import type { LayoutSheet } from "../types/api";
 
@@ -164,19 +164,47 @@ function SheetSvg({ sheet }: Props) {
 				</g>
 			);
 		});
-	const SheetSvgElement: React.FC = () => (
-		<svg
-			width="100%"
-			viewBox={`0 0 ${sheet.width} ${sheet.height}`}
-			className="border bg-gray-50"
-			preserveAspectRatio="xMinYMin meet"
-		>
-			<rect x="0" y="0" width={sheet.width} height={sheet.height} fill="#fff" stroke="#111" />
-			{renderPolygons}
-			{/* TODO currently all shapes are being renders as polygons based on how the backend is flagging them, because of this the layout of rectangles is very broken and untested */}
-			{renderRectangles}
-		</svg>
-	);
+	const [isMobile, setIsMobile] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(max-width: 640px)");
+		const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile((e as any).matches ?? !!mq.matches);
+		// Set initial
+		setIsMobile(mq.matches);
+		// Add listener (use addEventListener where available)
+		if (mq.addEventListener) {
+			mq.addEventListener("change", update as any);
+			return () => mq.removeEventListener("change", update as any);
+		}
+	}, []);
+
+	const SheetSvgElement: React.FC = () => {
+		// When rotating 90deg we swap the viewBox dims so the rotated content fits.
+		const svgViewBox = isMobile ? `0 0 ${sheet.height} ${sheet.width}` : `0 0 ${sheet.width} ${sheet.height}`;
+		// rotate 90deg about the origin then translate up by the original height so content is visible.
+		const transform90WhenMobile: string | undefined = isMobile
+			? `rotate(90) translate(0 -${sheet.height})`
+			: undefined;
+
+		return (
+			<div className="w-full overflow-auto flex justify-center">
+				<svg
+					width="100%"
+					viewBox={svgViewBox}
+					className="border bg-gray-50 block"
+					preserveAspectRatio="xMinYMin meet"
+				>
+					<g transform={transform90WhenMobile}>
+						<rect x="0" y="0" width={sheet.width} height={sheet.height} fill="#fff" stroke="#111" />
+						{renderPolygons}
+						{/* TODO currently all shapes are being renders as polygons based on how the backend is flagging them, because of this the layout of rectangles is very broken and untested */}
+						{renderRectangles}
+					</g>
+				</svg>
+			</div>
+		);
+	};
 	const SheetInfoDisplay: React.FC = () => (
 		<div className="text-sm text-gray-600 mb-1">
 			Sheet #{sheet.index + 1} – {sheet.width} x {sheet.height} mm

@@ -22,3 +22,6 @@ Thumbs.db
 server/auth.log
 .env
 .env.unraidBeta
+
+# Local act secrets file
+.secrets

@@ -65,16 +65,16 @@ function UserJobsList({ user, onSelectJob }: Props) {
 	return (
 		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
 			<h3 className="text-lg font-bold mb-2">Your Jobs</h3>
-			<form onSubmit={handleAddJob} className="mb-4 flex gap-2 items-center">
+			<form onSubmit={handleAddJob} className="mb-4 flex flex-col sm:flex-row gap-2 items-center">
 				<input
 					type="text"
 					placeholder="Job name"
 					value={jobName}
 					onChange={(e) => setJobName(e.target.value)}
-					className="border px-2 py-1 rounded"
+					className="border px-2 py-1 rounded w-full"
 					required
 				/>
-				<PrimaryButton type="submit" disabled={adding}>
+				<PrimaryButton className="w-full sm:w-auto sm:whitespace-nowrap" type="submit" disabled={adding}>
 					{adding ? "Adding..." : "Add Job"}
 				</PrimaryButton>
 			</form>

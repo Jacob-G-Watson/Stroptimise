@@ -61,13 +61,15 @@ function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/ap
 					type="number"
 					value={height}
 					onChange={(e) => setHeight(e.target.value)}
-					className="border px-2 py-1 rounded text-sm w-1/2"
+					className="border px-2 py-1 rounded text-sm w-full sm:w-1/2"
 				/>
 			</div>
 			<textarea
 				value={polygonText}
 				onChange={(e) => setPolygonText(e.target.value)}
-				className="border px-2 py-1 my-1 rounded text-sm"
+				rows={6}
+				wrap="soft"
+				className="border px-2 py-1 my-1 rounded text-sm w-full max-w-full overflow-auto break-words break-all resize-vertical"
 			/>
 			<div className="flex gap-2">
 				<PrimaryButton onClick={handleSave} disabled={saving}>

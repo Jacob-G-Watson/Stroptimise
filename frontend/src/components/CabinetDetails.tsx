@@ -187,18 +187,25 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	) => {
 		return (
 			<>
-				<span className="flex-1 break-all">
+				<span className="flex-1 break-words">
 					{piece.name || piece.id} - {piece.width} x {piece.height}
 				</span>
-				{piece.polygon ? (
-					<span className="ml-2 text-xs bg-stropt-green-light text-stropt-brown px-1 rounded">polygon</span>
-				) : null}
-				<PrimaryButton onClick={() => handleEditPiece(piece)} className="whitespace-nowrap px-3 py-1 text-sm">
-					Edit
-				</PrimaryButton>
-				<DangerButton onClick={() => handleDeletePiece(piece.id)} disabled={deletingIds.has(piece.id)}>
-					{deletingIds.has(piece.id) ? "Deleting..." : "Delete"}
-				</DangerButton>
+				<div className="flex items-center gap-2 ml-4">
+					{piece.polygon ? (
+						<span className="text-xs bg-stropt-green-light text-stropt-brown px-1 rounded">polygon</span>
+					) : null}
+					<div className="flex items-center gap-2">
+						<PrimaryButton
+							onClick={() => handleEditPiece(piece)}
+							className="whitespace-nowrap px-3 py-1 text-sm"
+						>
+							Edit
+						</PrimaryButton>
+						<DangerButton onClick={() => handleDeletePiece(piece.id)} disabled={deletingIds.has(piece.id)}>
+							{deletingIds.has(piece.id) ? "Deleting..." : "Delete"}
+						</DangerButton>
+					</div>
+				</div>
 			</>
 		);
 	};
@@ -222,16 +229,22 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	};
 
 	const renderPiecesList = () => (
-		<div className="">
+		<div className="w-full">
 			<h3 className="font-semibold">Pieces</h3>
-			<ul className="list-disc pl-6 min-w-[30%] max-w-fit">
-				{pieces.map((piece) => (
-					<li key={piece.id} className="flex items-center gap-4 w-full">
-						{editingPiece && editingPiece.id === piece.id
-							? renderPieceEditor(editingPiece, setError)
-							: renderPieceItem(piece, handleEditPiece, handleDeletePiece, deletingIds)}
-					</li>
-				))}
+			<ul className="list-disc pl-6 w-full">
+				{pieces.map((piece) => {
+					const isEditing = editingPiece && editingPiece.id === piece.id;
+					return (
+						<li key={piece.id} className={"flex flex-col sm:flex-row sm:items-center gap-4 w-full"}>
+							{isEditing ? (
+								<div className="w-full">{renderPieceEditor(editingPiece as PieceBase, setError)}</div>
+							) : (
+								// renderPieceItem returns sibling elements (name + button group) so they become direct children of the li
+								renderPieceItem(piece, handleEditPiece, handleDeletePiece, deletingIds)
+							)}
+						</li>
+					);
+				})}
 			</ul>
 		</div>
 	);
@@ -239,9 +252,9 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	const renderAddPieceForm = () => (
 		<form
 			onSubmit={handleAddPiece}
-			className={`mb-4 flex gap-2 items-center w-max max-w-[90vw] border p-2 rounded`}
+			className={`mb-4 flex flex-col sm:flex-row gap-2 items-start w-full max-w-[90vw] border p-2 rounded`}
 		>
-			<div className="flex-shrink-0 w-48 flex flex-col gap-2">
+			<div className="flex-shrink-0 w-full sm:w-48 flex flex-col gap-2">
 				<input
 					type="text"
 					placeholder="Piece name"
@@ -250,31 +263,33 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 					className="border px-2 py-1 rounded text-sm w-full"
 					required
 				/>
-				<div className="flex gap-2">
+				<div className="flex gap-2 w-full">
 					<input
 						type="number"
 						placeholder="Width"
 						value={pieceWidth}
 						onChange={(e) => setPieceWidth(e.target.value)}
-						className="border px-2 py-1 rounded text-sm w-1/2"
+						className="border px-2 py-1 rounded text-sm w-full sm:w-1/2"
 					/>
 					<input
 						type="number"
 						placeholder="Height"
 						value={pieceHeight}
 						onChange={(e) => setPieceHeight(e.target.value)}
-						className="border px-2 py-1 rounded text-sm w-1/2"
+						className="border px-2 py-1 rounded text-sm w-full sm:w-1/2"
 					/>
 				</div>
 			</div>
-			<div className="">
+			<div className="flex-1 w-full">
 				<textarea
 					placeholder="Polygon points JSON e.g. [[0,0],[300,0],[300,50],[50,50],[50,200],[0,200]]"
 					value={polygonText}
 					onChange={(e) => setPolygonText(e.target.value)}
-					className="border px-2 py-1 my-1 rounded text-sm "
+					rows={4}
+					wrap="soft"
+					className="border px-2 py-1 my-1 rounded text-sm w-full max-w-full overflow-auto break-words break-all resize-vertical"
 				/>
-				<div className="flex-shrink-0">
+				<div className="flex-shrink-0 mt-1">
 					<PrimaryButton type="submit" disabled={adding} className="whitespace-nowrap px-3 py-1 my-1 text-sm">
 						{adding ? "Adding..." : "Add Piece"}
 					</PrimaryButton>
@@ -284,14 +299,14 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 	);
 
 	return (
-		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
+		<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full min-w-0 overflow-hidden mt-6">
 			{!cabinet ? (
 				<div className="min-w-[50%] w-auto max-w-[50vw] mx-auto">
 					<div>Loading cabinet...</div>
 				</div>
 			) : (
 				<>
-					<div className="flex items-center gap-3 mb-2">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 gap-2 mb-2">
 						<h2 className="text-xl font-bold text-stropt-brown m-0">
 							Cabinet:{" "}
 							{!renaming ? (
@@ -301,7 +316,7 @@ function CabinetDetails({ cabinet: cabinetProp }: Props) {
 									type="text"
 									value={newName}
 									onChange={(e) => setNewName(e.target.value)}
-									className="border rounded px-2 py-1 text-sm"
+									className="border rounded px-2 py-1 text-sm w-full sm:w-auto"
 								/>
 							)}
 						</h2>

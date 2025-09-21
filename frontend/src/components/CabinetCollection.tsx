@@ -58,7 +58,7 @@ export default function CabinetCollection<T extends CabinetBase>({
 	}, [collection.items]);
 
 	return (
-		<div>
+		<div className="w-full">
 			<h3 className="font-semibold">{title}</h3>
 			{collection.loading && <div>Loading cabinets...</div>}
 			{collection.error && <div className="text-red-500">{collection.error}</div>}

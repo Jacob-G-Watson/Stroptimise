@@ -158,18 +158,17 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 		/>
 	);
 
-	// no job handling could be improved
 	return !job ? null : (
-		<div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6 px-4 items-start">
+		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 px-4 items-start">
 			<div className="hidden lg:block" />
-			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full mx-auto min-w-0 overflow-hidden">
+			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full min-w-0 overflow-hidden">
 				<div className="flex items-center justify-between mb-3 gap-2">
 					<h2 className="text-xl font-bold text-stropt-brown truncate">Job: {job.name || job.id}</h2>
 					<PrimaryButton onClick={() => handleViewLayout()}>View Layout</PrimaryButton>
 				</div>
 				{jobCabinetCollection.loading && <div>Loading cabinets...</div>}
 				{jobCabinetCollection.error && <div className="text-red-500">{jobCabinetCollection.error}</div>}
-				<div className="min-w-0">{jobCabinetList}</div>
+				<div className="min-w-0 w-full">{jobCabinetList}</div>
 			</div>
 			<div className="p-4 bg-white rounded shadow stropt-border w-full max-w-full min-w-0 lg:justify-self-end overflow-hidden">
 				<div className="flex items-center justify-between mb-3 gap-2">
@@ -177,7 +176,7 @@ function JobDetails({ job: jobProp, onEditCabinet, handleViewLayout }: Props) {
 				</div>
 				{userCabinetCollection.loading && <div>Loading cabinets...</div>}
 				{userCabinetCollection.error && <div className="text-red-500">{userCabinetCollection.error}</div>}
-				<div className="min-w-0">{userCabinetList}</div>
+				<div className="min-w-0 w-full">{userCabinetList}</div>
 			</div>
 		</div>
 	);

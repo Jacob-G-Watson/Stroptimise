@@ -69,7 +69,7 @@ function PieceEditor({ piece, onSaved, onCancel, onError, patchPathPrefix = "/ap
 				onChange={(e) => setPolygonText(e.target.value)}
 				rows={6}
 				wrap="soft"
-				className="border px-2 py-1 my-1 rounded text-sm w-full max-w-full overflow-auto break-words break-all resize-vertical"
+				className="border px-2 py-1 my-1 rounded text-sm w-full max-w-full overflow-auto break-words resize-vertical"
 			/>
 			<div className="flex gap-2">
 				<PrimaryButton onClick={handleSave} disabled={saving}>

@@ -58,9 +58,11 @@ function UserLogin({ onLogin }: Props) {
 	}
 
 	return (
-		<div className="flex flex-col items-center justify-center bg-stropt-beige">
-			<span className="font-sans font-extrabold p-20 text-9xl text-stropt-green">
-				Strop<span className="text-stropt-brown">timise</span>
+		<div className="flex flex-col items-center justify-center bg-stropt-beige w-full">
+			<span className="block w-full text-center font-sans font-extrabold p-4 md:px-20 lg:px-40 text-[clamp(3rem,11vw,10rem)] leading-tight text-stropt-green max-w-full whitespace-normal">
+				Strop
+				<wbr />
+				<span className="text-stropt-brown">timise</span>
 			</span>
 			<div className="p-4 bg-white rounded shadow mx-auto max-w-max stropt-border">
 				<h2 className="text-xl font-bold mb-4">{isSignup ? "Sign up" : "Login"}</h2>

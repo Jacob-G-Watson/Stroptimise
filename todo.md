@@ -37,5 +37,3 @@ could do a delete instead
 ## CICD
 
 ## Tech Debt
-
-- Testing framework

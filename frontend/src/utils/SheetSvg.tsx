@@ -169,13 +169,13 @@ function SheetSvg({ sheet }: Props) {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 		const mq = window.matchMedia("(max-width: 640px)");
-		const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile((e as any).matches ?? !!mq.matches);
+		const update = (e: MediaQueryListEvent) => setIsMobile(e.matches);
 		// Set initial
 		setIsMobile(mq.matches);
 		// Add listener (use addEventListener where available)
 		if (mq.addEventListener) {
-			mq.addEventListener("change", update as any);
-			return () => mq.removeEventListener("change", update as any);
+			mq.addEventListener("change", update);
+			return () => mq.removeEventListener("change", update);
 		}
 	}, []);
 

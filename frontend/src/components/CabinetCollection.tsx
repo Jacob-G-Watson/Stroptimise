@@ -121,13 +121,13 @@ function renderCabinetList<T extends CabinetBase>(
 				const isExpanded = expanded[cab.id];
 				return (
 					<li key={cab.id} className="mb-2 border rounded">
-						<div className="flex items-center justify-between p-2">
-							<div className="flex items-center gap-2">
+						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2">
+							<div className="flex items-center gap-2 min-w-0 overflow-hidden">
 								{allowExpand && (
 									<button
 										aria-label={isExpanded ? "Collapse" : "Expand"}
 										onClick={() => setExpanded((p) => ({ ...p, [cab.id]: !p[cab.id] }))}
-										className="text-xl w-6 h-6 flex items-center justify-center"
+										className="text-xl w-6 h-6 flex items-center justify-center flex-shrink-0"
 									>
 										{isExpanded ? "▾" : "▸"}
 									</button>
@@ -136,7 +136,7 @@ function renderCabinetList<T extends CabinetBase>(
 									{cab.name || cab.id}
 								</span>
 							</div>
-							<div className="flex gap-2">
+							<div className="flex gap-2 mt-2 sm:mt-0 flex-wrap">
 								{extraCabinetActions && extraCabinetActions(cab)}
 								{onEdit && <PrimaryButton onClick={() => onEdit(cab)}>Edit</PrimaryButton>}
 								<DangerButton

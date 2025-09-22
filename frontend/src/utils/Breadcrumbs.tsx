@@ -3,11 +3,12 @@ import { NavLink, useLocation } from "react-router-dom";
 import SelectionContext from "./SelectionContext";
 
 export default function Breadcrumbs() {
-	const { pathname } = useLocation();
+	const location = useLocation();
+	const { pathname } = location;
 	const { job, cabinet } = React.useContext(SelectionContext);
-	// Support both /jobs/... and /user_cabinets/:id routes
+	// Support both /jobs/... and /user_cabinets (list) or /user_cabinets/:id routes
 	const parts = pathname.split("/").filter(Boolean);
-	const isUserCabinetRoute = parts[0] === "user_cabinets" && parts[1];
+	const isUserCabinetRoute = parts[0] === "user_cabinets";
 	const isJobsRoute = parts[0] === "jobs";
 	if (!isJobsRoute && !isUserCabinetRoute) return null;
 
@@ -33,11 +34,24 @@ export default function Breadcrumbs() {
 			});
 		}
 	} else if (isUserCabinetRoute) {
-		// user cabinet standalone page
-		crumbs = [
-			{ label: "Jobs", to: "/jobs" },
-			{ label: truncate(cabinet?.name || parts[1]) || parts[1], to: `/user_cabinets/${parts[1]}` },
-		];
+		if (pathname === "/user_cabinets") {
+			crumbs = [{ label: "Your Library", to: "/user_cabinets" }];
+		} else {
+			// /user_cabinets/:id - user cabinet standalone page. If opened from a job route (navigation state provided), show job breadcrumbs.
+			const fromJobId = (location as any)?.state?.fromJobId as string | undefined;
+			if (fromJobId) {
+				crumbs = [
+					{ label: "Jobs", to: "/jobs" },
+					{ label: truncate(job?.name || fromJobId) || fromJobId, to: `/jobs/${fromJobId}` },
+					{ label: truncate(cabinet?.name || parts[1]) || parts[1], to: `/user_cabinets/${parts[1]}` },
+				];
+			} else {
+				crumbs = [
+					{ label: "Your Library", to: "/user_cabinets" },
+					{ label: truncate(cabinet?.name || parts[1]) || parts[1], to: `/user_cabinets/${parts[1]}` },
+				];
+			}
+		}
 	}
 	const lastIndex = crumbs.length - 1;
 	return (

@@ -6,6 +6,7 @@ import JobDetails from "./components/JobDetails";
 import CabinetDetails from "./components/CabinetDetails";
 import JobLayoutViewer from "./components/JobLayoutViewer";
 import Navbar from "./components/Navbar";
+import UserCabinetsList from "./components/UserCabinetsList";
 import SelectionContext from "./utils/SelectionContext";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import { useSession } from "./services/useSession";
@@ -82,7 +83,8 @@ function App() {
 									onEditCabinet={(cab) => {
 										setCabinet(cab);
 										if ((cab as any).owner_type === "user") {
-											navigate(`/user_cabinets/${cab.id}`);
+											// include originating job id in location state so breadcrumbs can render job context
+											navigate(`/user_cabinets/${cab.id}`, { state: { fromJobId: job?.id } });
 										} else {
 											navigate(`/jobs/${job?.id || cab.owner_id}/cabinet/${cab.id}`);
 										}
@@ -94,6 +96,7 @@ function App() {
 						<Route path="/jobs/:jobId/layout" element={<JobLayoutViewer job={job} />} />
 						<Route path="/jobs/:jobId/cabinet/:cabinetId" element={<CabinetDetails cabinet={cabinet} />} />
 						<Route path="/user_cabinets/:cabinetId" element={<CabinetDetails cabinet={cabinet} />} />
+						<Route path="/user_cabinets" element={<UserCabinetsList user={user} />} />
 					</Route>
 				</Routes>
 			</SelectionContext.Provider>

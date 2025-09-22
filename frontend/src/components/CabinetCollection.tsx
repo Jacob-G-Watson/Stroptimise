@@ -132,7 +132,7 @@ function renderCabinetList<T extends CabinetBase>(
 										{isExpanded ? "▾" : "▸"}
 									</button>
 								)}
-								<span className="font-medium text-stropt-brown word-break" title={cab.name || cab.id}>
+								<span className="font-medium text-stropt-brown break-words" title={cab.name || cab.id}>
 									{cab.name || cab.id}
 								</span>
 							</div>

@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import React from "react";
 import Breadcrumbs from "../utils/Breadcrumbs";
-import { DangerButton, BackButton } from "../utils/ThemeUtils";
+import { DangerButton, BackButton, PrimaryButton } from "../utils/ThemeUtils";
 import type { User } from "../types/api";
 
 interface Props {
@@ -120,7 +120,10 @@ function Navbar({ user, onLogout }: Props) {
 				<HamburgerToggle mobileOpen={mobileOpen} onToggle={() => setMobileOpen((s) => !s)} />
 				<Brand onToggle={() => setMobileOpen((s) => !s)} />
 				{showBack && (
-					<div className="ml-2">
+					<div className="ml-2 flex items-center gap-2">
+						<PrimaryButton onClick={() => navigate("/jobs")} className="px-2 py-1">
+							Home
+						</PrimaryButton>
 						<BackButton onClick={handleBack}>Back</BackButton>
 					</div>
 				)}

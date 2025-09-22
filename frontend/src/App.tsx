@@ -83,7 +83,8 @@ function App() {
 									onEditCabinet={(cab) => {
 										setCabinet(cab);
 										if ((cab as any).owner_type === "user") {
-											navigate(`/user_cabinets/${cab.id}`);
+											// include originating job id in location state so breadcrumbs can render job context
+											navigate(`/user_cabinets/${cab.id}`, { state: { fromJobId: job?.id } });
 										} else {
 											navigate(`/jobs/${job?.id || cab.owner_id}/cabinet/${cab.id}`);
 										}

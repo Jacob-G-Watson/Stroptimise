@@ -167,8 +167,8 @@ def import_user_cabinet_to_job(
             raise HTTPException(status_code=404, detail="UserCabinet not found")
         if ucab.user_id != user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
-        # Create new job cabinet with same name (could be adjusted if name collision desired)
-        new_cab = Cabinet(name=ucab.name, job_id=pid)
+        new_name = f"Copy of {ucab.name}"
+        new_cab = Cabinet(name=new_name, job_id=pid)
         s.add(new_cab)
         s.commit()
         s.refresh(new_cab)

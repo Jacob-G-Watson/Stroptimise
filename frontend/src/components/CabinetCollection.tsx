@@ -90,17 +90,17 @@ function renderAddCabinetForm<T extends CabinetBase>(
 					.then(() => setValue(""))
 					.catch(() => {});
 			}}
-			className="mb-4 flex gap-2 items-center"
+			className="mb-4 flex flex-col sm:flex-row gap-2 items-center"
 		>
 			<input
 				type="text"
 				placeholder={addPlaceholder}
 				value={value}
 				onChange={(e) => setValue(e.target.value)}
-				className="border px-2 py-1 rounded"
+				className="border px-2 py-1 rounded w-full sm:flex-1 min-w-0"
 				required
 			/>
-			<PrimaryButton type="submit" disabled={collection.isAdding}>
+			<PrimaryButton type="submit" disabled={collection.isAdding} className="w-full sm:w-auto whitespace-nowrap">
 				{collection.isAdding ? "Adding..." : addLabel}
 			</PrimaryButton>
 		</form>
@@ -132,7 +132,7 @@ function renderCabinetList<T extends CabinetBase>(
 										{isExpanded ? "▾" : "▸"}
 									</button>
 								)}
-								<span className="font-medium text-stropt-brown truncate" title={cab.name || cab.id}>
+								<span className="font-medium text-stropt-brown word-break" title={cab.name || cab.id}>
 									{cab.name || cab.id}
 								</span>
 							</div>

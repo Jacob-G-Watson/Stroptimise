@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getJobsForUser, createJob, ApiError } from "../services/api";
 import { notify } from "../services/notify";
 import { PrimaryButton } from "../utils/ThemeUtils";
+import { useNavigate } from "react-router-dom";
 import type { User, Job } from "../types/api";
 
 interface Props {
@@ -15,6 +16,7 @@ function UserJobsList({ user, onSelectJob }: Props) {
 	const [error, setError] = useState("");
 	const [adding, setAdding] = useState(false);
 	const [jobName, setJobName] = useState("");
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		if (!user?.id) return;
@@ -64,7 +66,12 @@ function UserJobsList({ user, onSelectJob }: Props) {
 
 	return (
 		<div className="p-4 bg-white rounded shadow stropt-border w-max max-w-[90vw] mx-auto mt-6">
-			<h3 className="text-lg font-bold mb-2">Your Jobs</h3>
+			<div className="flex items-center justify-between mb-2">
+				<h3 className="text-lg font-bold">Your Jobs</h3>
+				<PrimaryButton className="ml-4 whitespace-nowrap" onClick={() => navigate("/user_cabinets")}>
+					Your Library
+				</PrimaryButton>
+			</div>
 			<form onSubmit={handleAddJob} className="mb-4 flex flex-col sm:flex-row gap-2 items-center">
 				<input
 					type="text"
